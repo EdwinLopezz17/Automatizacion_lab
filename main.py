@@ -12,10 +12,11 @@ from core.file_reader import read_excel
 from reports.hallazgos_cesados_v2 import generar_reporte_hallazgos_cesados
 from reports.hallazgos_aplicaciones_criticas import generar_reporte_hallazgos_aplicaciones_criticas
 from reports.hallazgos_entra_id import generar_reporte_hallazgos_entra_id
-from core.account_type_service import AccountTypeService
-from core.post_cese_service import PostCeseService
+from reports.hallazgos_base_datos import generar_reporte_hallazgos_base_datos
+from reports.hallazgos_ad import generar_reporte_hallazgos_ad
+from services.account_type_service import AccountTypeService
+from services.post_cese_service import PostCeseService
 from routers import historico
-import services
 
 app = FastAPI(title="Auditoría de Accesos API", version="-.-.-")
 
@@ -64,7 +65,7 @@ async def reporte_hallazgos_base_datos(
         df_exa_log = read_excel(users_db_exactus_login) if (users_db_exactus_login and users_db_exactus_login.filename) else None
         df_sit     = read_excel(users_db_sit)           if (users_db_sit           and users_db_sit.filename)           else None
 
-        buf = services.generar_reporte_hallazgos_base_datos(
+        buf = generar_reporte_hallazgos_base_datos(
             df_sdp=df_sdp, df_sdp_login=df_sdp_log,
             df_exactus=df_exa, df_exactus_login=df_exa_log,
             df_sit=df_sit,
@@ -94,7 +95,7 @@ async def reporte_hallazgos_ad(
         postCeseService.cargar_desde_db()
         accountTypeService.cargar_desde_db()
         
-        buf = services.generar_reporte_hallazgos_ad(
+        buf = generar_reporte_hallazgos_ad(
             fecha_ref=fref,
             accountTypeService=accountTypeService,
             postCeseService=postCeseService,

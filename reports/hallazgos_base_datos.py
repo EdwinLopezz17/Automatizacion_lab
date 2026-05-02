@@ -3,9 +3,9 @@ import pandas as pd
 from datetime import date
 from core.normalizer import normalizar_df
 from core.excel_writer import _crear_wb_vacio, _df_to_sheet, wb_to_buffer
-from core.post_cese_service import PostCeseService
-from core.account_type_service import AccountTypeService
-from core.gdh_service import GDHUserService
+from services.post_cese_service import PostCeseService
+from services.account_type_service import AccountTypeService
+from services.gdh_service import GDHUserService
 from core.utils import to_date
 
 def _find(df, candidates):

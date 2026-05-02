@@ -1,12 +1,11 @@
 import io
 import pandas as pd
 from datetime import date
-from core.normalizer import normalizar_df
 from core.excel_writer import _crear_wb_vacio, _df_to_sheet, wb_to_buffer
-from core.post_cese_service import PostCeseService
-from core.account_type_service import AccountTypeService
-from core.ad_service import ADService
-from core.gdh_service import GDHUserService
+from services.post_cese_service import PostCeseService
+from services.account_type_service import AccountTypeService
+from services.ad_service import ADService
+from services.gdh_service import GDHUserService
 
 def generar_reporte_hallazgos_ad(
     fecha_ref: date,

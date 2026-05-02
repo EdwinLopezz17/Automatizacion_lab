@@ -7,9 +7,9 @@ from core.utils import to_date
 
 from core.normalizer import normalizar_df, find_col
 from core.excel_writer import _crear_wb_vacio as crear_wb_vacio, wb_to_buffer, _df_to_sheet, DATE_COLS_CESADOS
-from core.post_cese_service import PostCeseService
-from core.ad_service import ADService
-from core.gdh_service import GDHUserService
+from services.post_cese_service import PostCeseService
+from services.ad_service import ADService
+from services.gdh_service import GDHUserService
 
 _entra_lock = threading.Lock()
 def _to_str(val) -> str:

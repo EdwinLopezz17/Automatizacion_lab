@@ -5,10 +5,10 @@ from typing import Optional
 
 from core.normalizer import normalizar_df
 from core.excel_writer import _crear_wb_vacio, _df_to_sheet, wb_to_buffer
-from core.post_cese_service import PostCeseService
-from core.account_type_service import AccountTypeService
-from core.ad_service import ADService
-from core.gdh_service import GDHUserService, GDHUserInfo
+from services.post_cese_service import PostCeseService
+from services.account_type_service import AccountTypeService
+from services.ad_service import ADService
+from services.gdh_service import GDHUserService, GDHUserInfo
 from core.utils import to_date
 
 DATE_COLS_APP = {"Fecha Creación", "Ultimo Login", "Fecha Cese"}

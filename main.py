@@ -171,9 +171,6 @@ async def reporte_hallazgos_aplicaciones_criticas(
     sdp_login:              UploadFile = File(...),
     npac_habilitados:       UploadFile = File(...),
     sit_habilitados:        UploadFile = File(...),
-    activos_gdh:            UploadFile = File(...),
-    cesados_gdh:            UploadFile = File(...),
-    ad_prima:               UploadFile = File(...),
     fecha_ref:              str        = Form(""),
 ):
     try:
@@ -185,18 +182,14 @@ async def reporte_hallazgos_aplicaciones_criticas(
         postCeseService.cargar_desde_db()
         accountTypeService.cargar_desde_db()
 
-
         buf = generar_reporte_hallazgos_aplicaciones_criticas(
-            df_usr_exactus      = read_excel(usr_exactus),
-            df_login_exactus    = read_excel(login_exactus),
-            df_sdp_usuarios     = read_excel(sdp_usuarios),
-            df_sdp_login        = read_excel(sdp_login),
+            df_usr_exactus = read_excel(usr_exactus),
+            df_login_exactus = read_excel(login_exactus),
+            df_sdp_usuarios = read_excel(sdp_usuarios),
+            df_sdp_login = read_excel(sdp_login),
             df_npac_habilitados = read_excel(npac_habilitados),
-            df_sit_habilitados  = read_excel(sit_habilitados),
-            df_activos_gdh      = read_excel(activos_gdh),
-            df_cesados_gdh      = read_excel(cesados_gdh),
-            df_ad_prima         = read_excel(ad_prima),
-            fecha_ref           = fref,
+            df_sit_habilitados = read_excel(sit_habilitados),
+            fecha_ref = fref,
             accountTypeService=accountTypeService,
             postCeseService=postCeseService,
         )

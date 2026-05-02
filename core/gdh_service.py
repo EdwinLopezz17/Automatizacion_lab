@@ -92,8 +92,8 @@ class GDHUserService:
         if user:
             return user
             
-        return GDHUserInfo( matricula=key, nombre="NO ENCONTRADO", apellido_paterno="",
-            apellido_materno="", dni="", u_organizativa="DESCONOCIDO", fecha_alta=None,
+        return GDHUserInfo( matricula="", nombre="", apellido_paterno="",
+            apellido_materno="", dni="", u_organizativa=" ", fecha_alta=None,
             fecha_cese=None, isActivo=False, isCesado=False
         )
     

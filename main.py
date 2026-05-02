@@ -88,15 +88,10 @@ async def reporte_hallazgos_base_datos(
 
 @app.post("/reporte/hallazgos-ad")
 async def reporte_hallazgos_ad(
-    activos_gdh: UploadFile = File(...),
-    cesados_gdh: UploadFile = File(...),
     fecha_ref: str = Form(""),
 ):
     try:
         fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
-
-        df_gdh = read_excel(activos_gdh)
-        df_cesados = read_excel(cesados_gdh)
 
         postCeseService = PostCeseService()
         accountTypeService = AccountTypeService()
@@ -105,8 +100,6 @@ async def reporte_hallazgos_ad(
         accountTypeService.cargar_desde_db()
         
         buf = services.generar_reporte_hallazgos_ad(
-            df_gdh=df_gdh,
-            df_cesados=df_cesados,
             fecha_ref=fref,
             accountTypeService=accountTypeService,
             postCeseService=postCeseService,

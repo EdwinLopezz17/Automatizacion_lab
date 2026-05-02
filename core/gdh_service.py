@@ -1,60 +1,102 @@
 import pandas as pd
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from datetime import date
 
 from core.utils import to_date
+from typing import Optional
 
 @dataclass
 class GDHUserInfo:
-    usuario: str
+    matricula: str
     nombre: str
-    corre: str
-    rol: str
-    isActivo: bool
-    fecha_creacion: date
-    fecha_ult_login: date
-    fecha_cambio: date
+    apellido_paterno: str
+    apellido_materno: str
+    dni: str
+    u_organizativa: str
+    fecha_alta: Optional[date] = None
+    fecha_cese: Optional[date] = None
+    isActivo: bool = False
+    isCesado: bool = False
 
-class ADService:
-    def __init__(self, csv_path="datos/ad_data.csv"):
+class GDHUserService:
+    def __init__(self):
         self._cache: dict[str, GDHUserInfo] = {}
-        self.csv_path = csv_path
-        self.cargar_desde_csv()
+        self.path_activos_gdh = "datos/Activos_PrimaAFP.xls"
+        self.path_cesados_gdh = "datos/Cesados_PrimaAFP.xls"
+        self.cargar_datos()
 
-    def cargar_desde_csv(self) -> None:
+    def cargar_datos(self) -> None:
         self._cache = {}
-        if not os.path.exists(self.csv_path):
+
+        if not os.path.exists(self.path_activos_gdh) or not os.path.exists(self.path_cesados_gdh):
+            print(f"Error: Archivos no encontrados.")
             return
 
         try:
-            df = pd.read_csv(self.csv_path)
-            df.columns = [c.strip().upper() for c in df.columns]
+            df_activos = pd.read_excel(self.path_activos_gdh).fillna('')
+            print(f"{self.path_activos_gdh} cargado correctamente")
 
-            for _, row in df.iterrows():
-                usuario = str(row.get('SAMACCOUNTNAME', '')).strip().upper()
+            df_cesados = pd.read_excel(self.path_cesados_gdh).fillna('')
+            print(f"{self.path_cesados_gdh} cargado correctamente")
+
+            df_activos.columns = [str(c).strip().upper() for c in df_activos.columns]
+            df_cesados.columns = [str(c).strip().upper() for c in df_cesados.columns]
+
+            for _, row in df_activos.iterrows():
+                matricula = str(row.get('ID SISTEMA', '')).strip().upper()
+                if not matricula or matricula == 'NAN': continue
                 
-                if usuario:
-                    self._cache[usuario] = ADUserInfo(
-                        usuario = str(row.get('SAMACCOUNTNAME','')).strip(),
-                        nombre = str(row.get('DISPLAYNAME','')).strip(),
-                        corre = str(row.get('MAIL','')).strip(),
-                        rol = str(row.get('IPPHONE','')).strip(),
-                        isActivo = str(row.get('ENABLED', '')).strip().upper() in ["TRUE", "1", "YES"],
-                        fecha_creacion = to_date(row.get('WHENCREATED')),
-                        fecha_ult_login = to_date(row.get('LASTLOGON')),
-                        fecha_cambio = to_date(row.get('WHENCHANGED'))
-                    )
-            print(f"Datos extraids del AD correctamente")
-        except Exception as e:
-            print(f"Error: {e}")
+                self._cache[matricula] = GDHUserInfo(
+                    matricula=matricula,
+                    nombre=str(row.get('NOMBRES', '')).strip().upper(),
+                    apellido_paterno=str(row.get('APELLIDO PATERNO', '')).strip().upper(),
+                    apellido_materno=str(row.get('APELLIDO MATERNO', '')).strip().upper(),
+                    dni=str(row.get('NÚMERO ID', '')).strip().upper(),
+                    fecha_alta=to_date(str(row.get('FECHA', '')).strip()),
+                    u_organizativa=str(row.get('UNIDAD ORGANIZATIVA', '')).strip().upper(),
+                    isActivo=True,
+                    isCesado=False
+                )
 
-    def get_AD_user(self, usuario: str) -> ADUserInfo:
-        key = str(usuario).strip().upper()
-        return self._cache.get(key, ADUserInfo(
-            usuario=key, nombre="No encontrado", corre="n/a", rol="n/a",
-            isActivo=False, fecha_creacion=None, fecha_ult_login=None, fecha_cambio=None
-        ))
+            for _, row in df_cesados.iterrows():
+                matricula = str(row.get('ID SISTEMA', '')).strip().upper()
+                if not matricula or matricula == 'NAN': continue
+
+                fecha_cese_val = to_date(str(row.get('FECHA', '')).strip())
+
+                if matricula in self._cache:
+                    self._cache[matricula].isCesado = True
+                    self._cache[matricula].fecha_cese = fecha_cese_val
+                else:
+                    self._cache[matricula] = GDHUserInfo(
+                        matricula=matricula,
+                        nombre=str(row.get('NOMBRES', '')).strip().upper(),
+                        apellido_paterno=str(row.get('APELLIDO PATERNO', '')).strip().upper(),
+                        apellido_materno=str(row.get('APELLIDO MATERNO', '')).strip().upper(),
+                        dni=str(row.get('NÚMERO ID', '')).strip().upper(),
+                        fecha_alta=None,
+                        fecha_cese=fecha_cese_val,
+                        u_organizativa=str(row.get('UNIDAD ORGANIZATIVA', '')).strip().upper(),
+                        isActivo=False,
+                        isCesado=True
+                    )
+
+        except Exception as e:
+            print(f"Error cargando datos: {e}")
+
+    def get_GDH_user(self, matricula: str) -> GDHUserInfo:
+        key = str(matricula).strip().upper() if matricula else ""
+        user = self._cache.get(key)
+        
+        if user:
+            return user
+            
+        return GDHUserInfo( matricula=key, nombre="NO ENCONTRADO", apellido_paterno="",
+            apellido_materno="", dni="", u_organizativa="DESCONOCIDO", fecha_alta=None,
+            fecha_cese=None, isActivo=False, isCesado=False
+        )
     
-    def get_all_users_info(self) -> list[ADUserInfo]:
+    def get_all_GDH_user(self) -> list[GDHUserInfo]:
         return list(self._cache.values())
+    

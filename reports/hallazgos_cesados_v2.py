@@ -3,11 +3,13 @@ import io
 import pandas as pd
 import threading
 from pathlib import Path
+from core.utils import to_date
 
 from core.normalizer import normalizar_df, find_col
 from core.excel_writer import _crear_wb_vacio as crear_wb_vacio, wb_to_buffer, _df_to_sheet, DATE_COLS_CESADOS
 from core.post_cese_service import PostCeseService
-from core.account_type_service import AccountTypeService
+from core.ad_service import ADService
+from core.gdh_service import GDHUserService
 
 _entra_lock = threading.Lock()
 def _to_str(val) -> str:
@@ -106,47 +108,7 @@ def consolidar_entra_id(dfs: list) -> pd.DataFrame:
             print(f"[WARN] No se pudo guardar/leer histórico Entra ID: {e}. Usando solo lote actual.")
             return consolidado
 
-def _parse_fecha_segura(val, formato="AUTO"):
-    if _safe_isna(val):
-        return ""
-
-    try:
-        if isinstance(val, pd.Timestamp):
-            return val
-
-        val_str = str(val).strip()
-
-        if not val_str:
-            return ""
-
-        #USA (MM/DD/YYYY)
-        if formato == "US":
-            try:
-                return pd.to_datetime(val_str, format="%m/%d/%Y %H:%M", errors="raise")
-            except Exception:
-                return pd.to_datetime(val_str, format="%m/%d/%Y", errors="coerce")
-
-        #LATAM (DD/MM/YYYY)
-        elif formato == "EU":
-            return pd.to_datetime(val_str, dayfirst=True, errors="coerce")
-
-        #AUTO
-        else:
-            dt = pd.to_datetime(val_str, errors="coerce")
-            if dt is not None and not pd.isnull(dt) and "/" in val_str:
-                partes = val_str.split(" ")[0].split("/")
-                if len(partes) == 3:
-                    p1, p2 = int(partes[0]), int(partes[1])
-
-                    if p1 > 12 and dt.month != p2:
-                        return pd.to_datetime(val_str, dayfirst=True, errors="coerce")
-
-            return dt
-
-    except Exception:
-        return ""
-
-def _extract_login_map(df, cands_user, cands_date, formato="AUTO") -> dict:
+def _extract_login_map(df, cands_user, cands_date, formato="") -> dict:
     result = {}
     if df is None or df.empty:
         return result
@@ -162,57 +124,34 @@ def _extract_login_map(df, cands_user, cands_date, formato="AUTO") -> dict:
             k = _norm(_to_str(r[c_u]))
             if not k:
                 continue
-            result[k] = _parse_fecha_segura(r[c_f], formato=formato)
+            result[k] = to_date(r[c_f], formato)
 
     return result
 
 def generar_reporte_hallazgos_cesados(
-    df_cesados, df_usr_exactus, df_login_exactus, df_sit_hab, df_npac_hab,
+    df_usr_exactus, df_login_exactus, df_sit_hab, df_npac_hab,
     df_sdp_usr, df_sdp_login, df_db_sit, df_db_sdp, df_db_sdp_login,
-    df_db_exactus, df_db_exactus_login, df_ad_prima, dfs_entra_id,
+    df_db_exactus, df_db_exactus_login, dfs_entra_id,
     df_usuarios_entra_id: pd.DataFrame,
-    accountTypeService: AccountTypeService,
     postCeseService: PostCeseService
 ) -> io.BytesIO:
     
-    postCeseService = PostCeseService()
-    postCeseService.cargar_desde_db()
+    ad_service = ADService()
+    gdh_service = GDHUserService()
 
     df_entra = consolidar_entra_id(dfs_entra_id)
     _n = lambda df: normalizar_df(df) if (df is not None and not df.empty) else pd.DataFrame()
 
-    ces      = _n(df_cesados)
-    usr_exa  = _n(df_usr_exactus)
-    sit_hab  = _n(df_sit_hab)
+    usr_exa = _n(df_usr_exactus)
+    sit_hab = _n(df_sit_hab)
     npac_hab = _n(df_npac_hab)
-    sdp_usr  = _n(df_sdp_usr)
-    db_sdp   = _n(df_db_sdp)
-    db_exa   = _n(df_db_exactus)
-    ad       = _n(df_ad_prima)
-
-    c_id  = find_col(ces, ["ID SISTEMA"])
-    c_nom = find_col(ces, ["NOMBRES", "NOMBRE"])
-    c_ap  = find_col(ces, ["APELLIDO PATERNO"])
-    c_am  = find_col(ces, ["APELLIDO MATERNO"])
-    c_ou  = find_col(ces, ["UNIDAD ORGANIZATIVA"])
-
-    if not c_id:
-        raise ValueError("No se encontró columna 'ID SISTEMA' en Cesados Prima.")
-
-    ces_raw = df_cesados.copy()
-    ces_raw.columns = [str(c).strip() for c in ces_raw.columns]
-    c_fec_raw = find_col(ces_raw, ["FECHA", "FECHA CESE", "FECHA DE CESE"])
-    c_id_raw  = find_col(ces_raw, ["ID SISTEMA", "MATRICULA"])
-    fec_map = {}
-    if c_fec_raw and c_id_raw:
-        for _, row in ces_raw.iterrows():
-            k = _norm(_to_str(row[c_id_raw]))
-            if k:
-                fec_map[k] = None if _safe_isna(row[c_fec_raw]) else _parse_fecha_segura(row[c_fec_raw])
+    sdp_usr = _n(df_sdp_usr)
+    db_sdp = _n(df_db_sdp)
+    db_exa = _n(df_db_exactus)
 
     c_exa_u, c_exa_ac = find_col(usr_exa, ["USUARIO"]), find_col(usr_exa, ["ACTIVO"])
     exa_activo = _build_lookup(usr_exa, c_exa_u, c_exa_ac) if (c_exa_u and c_exa_ac) else {}
-    exa_login = _extract_login_map(df_login_exactus, ["USUARIO"], ["ULTIMO_LOGUIN"], formato="US")
+    exa_login = _extract_login_map(df_login_exactus, ["USUARIO"], ["ULTIMO_LOGUIN"])
 
     c_sit = find_col(sit_hab, ["SAMACCOUNTNAME", "SAM ACCOUNT NAME"])
     sit_set = _build_set(sit_hab, c_sit)
@@ -221,7 +160,7 @@ def generar_reporte_hallazgos_cesados(
 
     c_sdp_u, c_sdp_es = find_col(sdp_usr, ["COD_USUARIO", "COD USUARIO"]), find_col(sdp_usr, ["EST_ACTIVO", "EST ACTIVO"])
     sdp_estado = _build_lookup(sdp_usr, c_sdp_u, c_sdp_es) if (c_sdp_u and c_sdp_es) else {}
-    sdp_login  = _extract_login_map(df_sdp_login, ["COD_USUARIO", "COD USUARIO"], ["FECHALOGIN"], formato="US")
+    sdp_login  = _extract_login_map(df_sdp_login, ["COD_USUARIO", "COD USUARIO"], ["FECHALOGIN"])
 
     dbsit_active, dbsit_login = {}, {}
     if df_db_sit is not None and not df_db_sit.empty:
@@ -229,8 +168,8 @@ def generar_reporte_hallazgos_cesados(
         orig_raw = df_db_sit.copy()
         orig_raw.columns = [str(c).strip() for c in orig_raw.columns]
 
-        c_ln     = find_col(orig_norm, ["LOGINNAME", "LOGIN NAME"])
-        c_ac     = find_col(orig_norm, ["ISACTIVE", "IS ACTIVE", "ACTIVO"])
+        c_ln = find_col(orig_norm, ["LOGINNAME", "LOGIN NAME"])
+        c_ac = find_col(orig_norm, ["ISACTIVE", "IS ACTIVE", "ACTIVO"])
         c_ul_raw = find_col(orig_raw,  ["ULTIMOLOGEO", "ULTIMO LOGEO", "ULTIMO_LOGEO", "LAST LOGIN", "UltimoLogeo"])
 
         if c_ln:
@@ -248,23 +187,17 @@ def generar_reporte_hallazgos_cesados(
                 if c_ul_raw:
                     raw_fecha = row_raw[c_ul_raw]
                     if not _safe_isna(raw_fecha) and key not in dbsit_login:
-                        dbsit_login[key] = _parse_fecha_segura(raw_fecha, formato="EU")
+                        dbsit_login[key] = to_date(raw_fecha)
                     elif key not in dbsit_login:
                         dbsit_login[key] = ""
 
     c_dbsdp_u, c_dbsdp_st = find_col(db_sdp, ["USERNAME", "USER NAME"]), find_col(db_sdp, ["ACCOUNT_STATUS", "ACCOUNT STATUS"])
     dbsdp_status = _build_lookup(db_sdp, c_dbsdp_u, c_dbsdp_st) if (c_dbsdp_u and c_dbsdp_st) else {}
-    dbsdp_login  = _extract_login_map(df_db_sdp_login, ["USERNAME", "USER NAME"], ["MAX(DAS.TIMESTAMP)"], formato="US")
+    dbsdp_login  = _extract_login_map(df_db_sdp_login, ["USERNAME", "USER NAME"], ["MAX(DAS.TIMESTAMP)"])
 
     c_dbexa_u, c_dbexa_st = find_col(db_exa, ["USERNAME", "USER NAME"]), find_col(db_exa, ["ACCOUNT_STATUS", "ACCOUNT STATUS"])
     dbexa_status = _build_lookup(db_exa, c_dbexa_u, c_dbexa_st) if (c_dbexa_u and c_dbexa_st) else {}
-    dbexa_login  = _extract_login_map(df_db_exactus_login, ["USERNAME", "USER NAME"], ["MAX(DAS.TIMESTAMP)"], formato="US")
-
-    c_ad_sam  = find_col(ad, ["SAMACCOUNTNAME"])
-    c_ad_mail = find_col(ad, ["MAIL", "EMAIL", "CORREO"])
-    c_ad_ena  = find_col(ad, ["ENABLED"])
-    ad_mail    = _build_lookup(ad, c_ad_sam, c_ad_mail) if (c_ad_sam and c_ad_mail) else {}
-    ad_enabled = _build_lookup(ad, c_ad_sam, c_ad_ena)  if (c_ad_sam and c_ad_ena)  else {}
+    dbexa_login  = _extract_login_map(df_db_exactus_login, ["USERNAME", "USER NAME"], ["MAX(DAS.TIMESTAMP)"])
 
     entra_id_enabled_set = set()
     if df_usuarios_entra_id is not None and not df_usuarios_entra_id.empty:
@@ -274,18 +207,6 @@ def generar_reporte_hallazgos_cesados(
         c_entra_mail = find_col(entra_raw, ["mail", "MAIL"])
         c_entra_upn  = find_col(entra_raw, ["userPrincipalName", "USERPRINCIPALNAME"])
         c_entra_enab = find_col(entra_raw, ["accountEnabled", "ACCOUNTENABLED"])
-
-        ad_raw_orig = df_ad_prima.copy()
-        ad_raw_orig.columns = [str(c).strip() for c in ad_raw_orig.columns]
-        c_ad_sam_raw  = find_col(ad_raw_orig, ["SAMACCOUNTNAME"])
-        c_ad_mail_raw = find_col(ad_raw_orig, ["MAIL", "EMAIL", "CORREO"])
-        mail_to_sam_entra = {}
-        if c_ad_sam_raw and c_ad_mail_raw:
-            for _, r in ad_raw_orig.iterrows():
-                m = str(r[c_ad_mail_raw]).strip().upper()
-                s = str(r[c_ad_sam_raw]).strip().upper()
-                if m and m not in ("NAN", "NONE", "") and s:
-                    mail_to_sam_entra[m] = s
 
         for _, r in entra_raw.iterrows():
             correo = ""
@@ -297,78 +218,69 @@ def generar_reporte_hallazgos_cesados(
                 v = str(r[c_entra_upn]).strip()
                 if v and v.lower() not in ("nan", "none", ""):
                     correo = v
-
             if not correo:
                 continue
 
-            mat_entra = mail_to_sam_entra.get(correo.upper(), "")
-            if not mat_entra:
-                continue
+            ad_user = ad_service.get_AD_user_by_correo(correo)
 
             if c_entra_enab:
                 enabled_val = str(r[c_entra_enab]).strip().upper()
                 if enabled_val == "TRUE":
-                    entra_id_enabled_set.add(mat_entra)
+                    entra_id_enabled_set.add(ad_user.usuario)
 
     entra_fecha  = _extract_login_map(df_entra,    ["Nombre de usuario", "NOMBRE DE USUARIO", "USERNAME"], ["Fecha (UTC)", "FECHA (UTC)"])
-    ad_lastLogon = _extract_login_map(df_ad_prima, ["SAMACCOUNTNAME"], ["LASTLOGON"], formato="US")
 
     VAL_CESADO_ACTIVO = ["AD Nipa", "Entra ID", "Usr Exactus", "DB Exactus",
                          "Usr SDP", "DB SDP", "Usr SIT", "DB SIT", "Usr NPAC"]
 
     rows = []
-    for _, row in ces.iterrows():
-        mat = _norm(_to_str(row.get(c_id, "")))
-        if not mat: continue
+    for userCesado in gdh_service.get_cesados_GDH_user():
+        matricula = userCesado.matricula
+        ad_user = ad_service.get_AD_user(matricula)
 
-        nombre = " ".join(filter(None, [_to_str(row.get(c_nom, "")), _to_str(row.get(c_ap, "")), _to_str(row.get(c_am, ""))]))
-        unidad_org = _to_str(row.get(c_ou, "")) if c_ou else ""
-        fecha_cese = fec_map.get(mat, None)
+        activo_exa  = _to_str(exa_activo.get(matricula, ""))
+        usr_exactus = "Incorrecto" if activo_exa == "S" else "Correcto"
+        usr_exa_login = exa_login.get(matricula, "")
 
-        activo_exa  = _to_str(exa_activo.get(mat, ""))
-        usr_exactus = "INCORRECTO" if activo_exa == "S" else "CORRECTO"
-        usr_exa_login = exa_login.get(mat, "")
+        usr_sit  = "Incorrecto" if userCesado.matricula in sit_set  else "Correcto"
+        usr_npac = "Incorrecto" if userCesado.matricula in npac_set else "Correcto"
 
-        usr_sit  = "INCORRECTO" if mat in sit_set  else "CORRECTO"
-        usr_npac = "INCORRECTO" if mat in npac_set else "CORRECTO"
+        estado_sdp = _to_str(sdp_estado.get(matricula, ""))
+        usr_sdp = "Incorrecto" if estado_sdp == "S" else "Correcto"
+        usr_sdp_login = sdp_login.get(matricula, "")
 
-        estado_sdp = _to_str(sdp_estado.get(mat, ""))
-        usr_sdp       = "INCORRECTO" if estado_sdp == "S" else "CORRECTO"
-        usr_sdp_login = sdp_login.get(mat, "")
+        isactive = _to_str(dbsit_active.get(matricula, ""))
+        db_sit_val = "Incorrecto" if isactive == "ACTIVO" else "Correcto"
+        db_sit_login = dbsit_login.get(matricula, "")
 
-        isactive   = _to_str(dbsit_active.get(mat, ""))
-        db_sit_val = "INCORRECTO" if isactive == "ACTIVO" else "CORRECTO"
-        db_sit_login = dbsit_login.get(mat, "")
+        st_sdp = _to_str(dbsdp_status.get(matricula, ""))
+        db_sdp_val = "Incorrecto" if (st_sdp and "LOCKED" not in st_sdp) else "Correcto"
+        db_sdp_login_val = dbsdp_login.get(matricula, "")
 
-        st_sdp        = _to_str(dbsdp_status.get(mat, ""))
-        db_sdp_val    = "INCORRECTO" if (st_sdp and "LOCKED" not in st_sdp) else "CORRECTO"
-        db_sdp_login_val = dbsdp_login.get(mat, "")
+        st_exa = _to_str(dbexa_status.get(matricula, ""))
+        db_exa_val = "Incorrecto" if (st_exa and "LOCKED" not in st_exa) else "Correcto"
+        db_exa_login_val = dbexa_login.get(matricula, "")
 
-        st_exa        = _to_str(dbexa_status.get(mat, ""))
-        db_exa_val    = "INCORRECTO" if (st_exa and "LOCKED" not in st_exa) else "CORRECTO"
-        db_exa_login_val = dbexa_login.get(mat, "")
-
-        mail_ad  = _to_str(ad_mail.get(mat, ""))
+        ad_nipa_val = "Incorrecto" if ad_user.isActivo else "Correcto"
+        ad_nipa_login = ad_user.fecha_ult_login
+        postCeseADNipa = postCeseService.es_post_cese(matricula, "Active_Directory", userCesado.fecha_cese, ad_nipa_login)
+        
+        mail_ad = ad_user.correo
         entra_ult = entra_fecha.get(_norm(mail_ad), "") if mail_ad else ""
+        entra_id_val = "Incorrecto" if matricula in entra_id_enabled_set else "Correcto"
 
-        ena_raw    = _to_str(ad_enabled.get(mat, ""))
-        ad_nipa_val  = "INCORRECTO" if ena_raw == "TRUE" else ("CORRECTO" if ena_raw == "FALSE" else "CORRECTO")
-        ad_nipa_login = ad_lastLogon.get(mat, "")
-        entra_id_val = "INCORRECTO" if mat in entra_id_enabled_set else "CORRECTO"
-
-        postCeseADNipa = postCeseService.es_post_cese(mat, "Active_Directory", fecha_cese,ad_nipa_login)
-        postCeseEntraID = postCeseService.es_post_cese(mat, "APP_ENTRAID", fecha_cese, entra_ult)
-        postCeseAppExa =  postCeseService.es_post_cese (mat, "APP_Exactus", fecha_cese, usr_exa_login)
-        postCeseDBExa = postCeseService.es_post_cese (mat, "DB_EXACTUS", fecha_cese, db_exa_login_val)
-        postCeseAppSDP = postCeseService.es_post_cese (mat, "APP_SDP", fecha_cese, usr_sdp_login)
-        postCEseDBSDP = postCeseService.es_post_cese (mat, "DB_SDP", fecha_cese, db_sdp_login_val)
-        postCeseDBSIT = postCeseService.es_post_cese (mat, "DB_SIT", fecha_cese, db_sit_login)
+        postCeseEntraID = postCeseService.es_post_cese(matricula, "APP_ENTRAID", userCesado.fecha_cese, entra_ult)
+        postCeseAppExa =  postCeseService.es_post_cese (matricula, "APP_Exactus", userCesado.fecha_cese, usr_exa_login)
+        postCeseDBExa = postCeseService.es_post_cese (matricula, "DB_EXACTUS", userCesado.fecha_cese, db_exa_login_val)
+        postCeseAppSDP = postCeseService.es_post_cese (matricula, "APP_SDP", userCesado.fecha_cese, usr_sdp_login)
+        postCEseDBSDP = postCeseService.es_post_cese (matricula, "DB_SDP", userCesado.fecha_cese, db_sdp_login_val)
+        postCeseDBSIT = postCeseService.es_post_cese (matricula, "DB_SIT", userCesado.fecha_cese, db_sit_login)
 
         r = {
-            "Matricula": mat,
-            "Nombre": nombre,
-            "Unidad organizativa": unidad_org,
-            "Fecha de Cese": fecha_cese,
+            "Matricula": matricula,
+            "Nombre": userCesado.nombre +" "+userCesado.apellido_paterno+" "+userCesado.apellido_materno,
+            "Unidad organizativa": userCesado.u_organizativa,
+            "Fecha de Cese": userCesado.fecha_cese,
             "AD Nipa": ad_nipa_val,
             "Ultimo Login AD Nipa": ad_nipa_login,
             "PostCese AD Nipa": "Incorrecto" if postCeseADNipa else "Correcto",
@@ -394,8 +306,8 @@ def generar_reporte_hallazgos_cesados(
             "Usr SIT":usr_sit,
         }
         
-        r["Validación Cesado Activo"] = "INCORRECTO" if any(r.get(c) == "INCORRECTO" for c in VAL_CESADO_ACTIVO) else "CORRECTO"
-        r["Validación Post Cese"] = "Incorrecto" if postCeseADNipa and postCeseEntraID and postCeseAppExa and postCeseDBExa and postCeseAppSDP and postCEseDBSDP and postCeseDBSIT else "Correcto"
+        r["Validación Cesado Activo"] = "Incorrecto" if any(r.get(c) == "Incorrecto" for c in VAL_CESADO_ACTIVO) else "Correcto"
+        r["Validación Post Cese"] = "Incorrecto" if postCeseADNipa or postCeseEntraID or postCeseAppExa or postCeseDBExa or postCeseAppSDP or postCEseDBSDP or postCeseDBSIT else "Correcto"
         rows.append(r)
 
     df_out = pd.DataFrame(rows)

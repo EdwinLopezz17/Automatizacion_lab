@@ -111,47 +111,38 @@ async def reporte_hallazgos_ad(
 
 @app.post("/reporte/hallazgos-cesados")
 async def reporte_hallazgos_cesados(
-    cesados_gdh:            UploadFile = File(...),
-    users_db_sit:           UploadFile = File(None),
-    users_db_sdp:           UploadFile = File(...),
-    users_db_sdp_login:     UploadFile = File(...),
-    users_db_exactus:       UploadFile = File(None),
+    users_db_sit: UploadFile = File(None),
+    users_db_sdp: UploadFile = File(...),
+    users_db_sdp_login: UploadFile = File(...),
+    users_db_exactus: UploadFile = File(None),
     users_db_exactus_login: UploadFile = File(None),
-    ad_prima:               UploadFile = File(...),
-    usr_exactus:            UploadFile = File(...),
-    login_exactus:          UploadFile = File(...),
-    sit_habilitados:        UploadFile = File(...),
-    npac_habilitados:       UploadFile = File(...),
-    sdp_usuarios:           UploadFile = File(...),
-    sdp_login:              UploadFile = File(...),
-    entra_id_files:         List[UploadFile] = File(...),
-    usuarios_entra_id:      UploadFile = File(None),
+    usr_exactus: UploadFile = File(...),
+    login_exactus: UploadFile = File(...),
+    sit_habilitados: UploadFile = File(...),
+    npac_habilitados: UploadFile = File(...),
+    sdp_usuarios: UploadFile = File(...),
+    sdp_login: UploadFile = File(...),
+    entra_id_files: List[UploadFile] = File(...),
+    usuarios_entra_id: UploadFile = File(None),
 ):
     try:
-
         postCeseService = PostCeseService()
-        accountTypeService = AccountTypeService()
-
         postCeseService.cargar_desde_db()
-        accountTypeService.cargar_desde_db()
 
         buf = generar_reporte_hallazgos_cesados(
-            df_cesados            = read_excel(cesados_gdh),
-            df_usr_exactus        = read_excel(usr_exactus),
-            df_login_exactus      = read_excel(login_exactus),
-            df_sit_hab            = read_excel(sit_habilitados),
-            df_npac_hab           = read_excel(npac_habilitados),
-            df_sdp_usr            = read_excel(sdp_usuarios),
-            df_sdp_login          = read_excel(sdp_login),
-            df_db_sit             = read_excel(users_db_sit)           if (users_db_sit           and users_db_sit.filename)           else None,
-            df_db_sdp             = read_excel(users_db_sdp),
-            df_db_sdp_login       = read_excel(users_db_sdp_login),
-            df_db_exactus         = read_excel(users_db_exactus)       if (users_db_exactus       and users_db_exactus.filename)       else None,
-            df_db_exactus_login   = read_excel(users_db_exactus_login) if (users_db_exactus_login and users_db_exactus_login.filename) else None,
-            df_ad_prima           = read_excel(ad_prima),
-            dfs_entra_id          = [read_excel(f) for f in entra_id_files if f and f.filename],
-            df_usuarios_entra_id  = read_excel(usuarios_entra_id) if (usuarios_entra_id and usuarios_entra_id.filename) else None,
-            accountTypeService=accountTypeService,
+            df_usr_exactus = read_excel(usr_exactus),
+            df_login_exactus = read_excel(login_exactus),
+            df_sit_hab = read_excel(sit_habilitados),
+            df_npac_hab = read_excel(npac_habilitados),
+            df_sdp_usr = read_excel(sdp_usuarios),
+            df_sdp_login = read_excel(sdp_login),
+            df_db_sit = read_excel(users_db_sit) if (users_db_sit and users_db_sit.filename)           else None,
+            df_db_sdp = read_excel(users_db_sdp),
+            df_db_sdp_login = read_excel(users_db_sdp_login),
+            df_db_exactus = read_excel(users_db_exactus) if (users_db_exactus and users_db_exactus.filename)       else None,
+            df_db_exactus_login = read_excel(users_db_exactus_login) if (users_db_exactus_login and users_db_exactus_login.filename) else None,
+            dfs_entra_id = [read_excel(f) for f in entra_id_files if f and f.filename],
+            df_usuarios_entra_id = read_excel(usuarios_entra_id) if (usuarios_entra_id and usuarios_entra_id.filename) else None,
             postCeseService=postCeseService,
         )
     except Exception:

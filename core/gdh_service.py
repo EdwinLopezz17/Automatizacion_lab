@@ -93,7 +93,7 @@ class GDHUserService:
             return user
             
         return GDHUserInfo( matricula="", nombre="", apellido_paterno="",
-            apellido_materno="", dni="", u_organizativa=" ", fecha_alta=None,
+            apellido_materno="", dni="", u_organizativa="", fecha_alta=None,
             fecha_cese=None, isActivo=False, isCesado=False
         )
     
@@ -107,4 +107,7 @@ class GDHUserService:
     
     def get_all_GDH_user(self) -> list[GDHUserInfo]:
         return list(self._cache.values())
+    
+    def get_cesados_GDH_user(self) -> list[GDHUserInfo]:
+        return [user for user in self._cache.values() if user.isCesado]
     

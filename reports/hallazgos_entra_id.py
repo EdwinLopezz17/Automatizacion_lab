@@ -1,12 +1,11 @@
 import io
 import pandas as pd
-from datetime import date
-from typing import Optional
 
-from core.normalizer import normalizar_df
 from core.excel_writer import _crear_wb_vacio, _df_to_sheet, wb_to_buffer
 from core.post_cese_service import PostCeseService
 from core.account_type_service import AccountTypeService
+from core.ad_service import ADService
+from core.gdh_service import GDHUserService
 from core.utils import to_date
 
 DATE_COLS_ENTRA = {"Fecha Creación", "Fecha Cese"}
@@ -25,46 +24,15 @@ def _find(df, candidates):
 
 def generar_reporte_hallazgos_entra_id(
     df_entra_id:    pd.DataFrame,
-    df_activos_gdh: pd.DataFrame,
-    df_cesados_gdh: pd.DataFrame,
-    df_ad_prima:    pd.DataFrame,
     accountTypeService: AccountTypeService,
     postCeseService: PostCeseService
 ) -> io.BytesIO:
+    
+    ad_service = ADService()
+    gdh_service = GDHUserService()
 
     entra = df_entra_id.copy()
     entra.columns = [str(c).strip() for c in entra.columns]
-    gdh = normalizar_df(df_activos_gdh)
-    
-    ad_raw = df_ad_prima.copy()
-    ad_raw.columns = [str(c).strip() for c in ad_raw.columns]
-    c_ad_sam_raw  = _find(ad_raw, ["SAMACCOUNTNAME"])
-    c_ad_mail_raw = _find(ad_raw, ["MAIL"])
-    
-    mail_to_sam_ad: dict = {}
-    if c_ad_sam_raw and c_ad_mail_raw:
-        for _, r in ad_raw.iterrows():
-            m = str(r[c_ad_mail_raw]).strip().upper()
-            s = str(r[c_ad_sam_raw]).strip().upper()
-            if m and m not in ("NAN", "NONE", "") and s and s not in ("NAN", "NONE", ""):
-                mail_to_sam_ad[m] = s
-
-    c_gdh_id = _find(gdh, ["ID SISTEMA"])
-    gdh_set = {str(r[c_gdh_id]).strip().upper() for _, r in gdh.iterrows() if c_gdh_id and str(r[c_gdh_id]).strip()}
-
-    ces_raw = df_cesados_gdh.copy()
-    ces_raw.columns = [str(c).strip() for c in ces_raw.columns]
-    c_ces_id_raw  = _find(ces_raw, ["ID SISTEMA"])
-    c_ces_fec_raw = _find(ces_raw, ["FECHA"])
-    ces_set = set()
-    ces_fecha_map = {}
-    if c_ces_id_raw:
-        for _, r in ces_raw.iterrows():
-            k = str(r[c_ces_id_raw]).strip().upper()
-            if k:
-                ces_set.add(k)
-                if c_ces_fec_raw:
-                    ces_fecha_map[k] = to_date(r[c_ces_fec_raw])
 
     c_mail = _find(entra, ["mail"])
     c_upn  = _find(entra, ["userPrincipalName"])
@@ -85,11 +53,10 @@ def generar_reporte_hallazgos_entra_id(
             if val and val.lower() not in ("nan", "none", ""):
                 correo_key = val.upper()
 
-   
         if accountTypeService.get(correo_key).tipo == "servicio":
             continue
 
-        matricula = mail_to_sam_ad.get(correo_key, "")
+        matricula = ad_service.get_AD_user_by_correo(correo_key).usuario
         
         if not matricula:
             if c_city:
@@ -97,24 +64,17 @@ def generar_reporte_hallazgos_entra_id(
                 if val_city and val_city.lower() not in ("nan", "none", ""):
                     matricula = val_city.upper()
 
-
         tipo = accountTypeService.get(matricula).tipo
 
         nombre = str(row[c_disp]).strip() if c_disp else ""
         estado = "Activo" if str(row[c_enab]).strip().upper() == "TRUE" else "Bloqueado"
         fec_creacion = to_date(row[c_crea]) if c_crea else None
 
-        mat_key = matricula.upper() if matricula else ""
-        es_activo_gdh = "si" if mat_key and mat_key in gdh_set else "no"
-        es_cesado_gdh = "si" if mat_key and mat_key in ces_set else "no"
-        fecha_cese = ces_fecha_map.get(mat_key) if es_cesado_gdh == "si" else None
+        userGDH = gdh_service.get_GDH_user(matricula)
 
-        cesado_activo = "INCORRECTO" if (estado == "Activo" and es_cesado_gdh == "si") else "CORRECTO"
-        sin_sustento = (
-            "INCORRECTO"
-            if estado == "Activo" and es_activo_gdh == "no" and es_cesado_gdh == "no"
-            else "CORRECTO"
-        )
+        fecha_cese = userGDH.fecha_cese
+        cesado_activo = "Incorrecto" if (estado == "Activo" and userGDH.isCesado) else "Correcto"
+        sin_sustento = "Incorrecto" if estado == "Activo" and not userGDH.isCesado and not userGDH.isActivo else "Correcto"
 
         rows.append({
             "Correo": correo_key.lower(),
@@ -123,8 +83,8 @@ def generar_reporte_hallazgos_entra_id(
             "Nombre": nombre,
             "Estado": estado,
             "Fecha Creación": fec_creacion,
-            "activoGDH": es_activo_gdh,
-            "cesadoGDH": es_cesado_gdh,
+            "activoGDH": "si" if userGDH.isActivo else "no",
+            "cesadoGDH": "si" if userGDH.isCesado else "no",
             "Fecha Cese": fecha_cese,
             "cesadoActivo": cesado_activo,
             "Sin Sustento": sin_sustento,

@@ -56,7 +56,7 @@ def generar_reporte_hallazgos_ad(
         #estados y actividad
         cesado_activo  = "Incorrecto" if (userAd.isActivo and user_gdh.isCesado) else "Correcto"
         actividad_post = "Incorrecto" if postCeseService.es_post_cese(mat_final, "Active_Directory",fecha_cese, ult_log) else "Correcto"
-        sustento = "Correcto" if (user_gdh.isCesado or user_gdh.isActivo) else "Incorrecto"
+        sin_sustento = "Incorrecto" if userAd.isActivo and not user_gdh.isCesado and not user_gdh.isActivo else "Correcto"
 
         rows.append({
             "Usuario": user,
@@ -74,7 +74,7 @@ def generar_reporte_hallazgos_ad(
             "bloqueado>30d": blq30,
             "cesadoActivo": cesado_activo,
             "actividadPostCese": actividad_post,
-            "Sin Sustento": sustento,
+            "Sin Sustento": sin_sustento,
         })
 
     df_out = pd.DataFrame(rows)

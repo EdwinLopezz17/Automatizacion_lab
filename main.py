@@ -211,9 +211,6 @@ async def reporte_hallazgos_aplicaciones_criticas(
 
 @app.post("/reporte/hallazgos-entra-id")
 async def reporte_hallazgos_entra_id(
-    activos_gdh: UploadFile = File(...),
-    cesados_gdh: UploadFile = File(...),
-    ad_prima: UploadFile = File(...),
     usuarios_entra_id: UploadFile = File(...),
 ):
     try:
@@ -225,9 +222,6 @@ async def reporte_hallazgos_entra_id(
 
         buf = generar_reporte_hallazgos_entra_id(
             df_entra_id    = read_excel(usuarios_entra_id),
-            df_activos_gdh = read_excel(activos_gdh),
-            df_cesados_gdh = read_excel(cesados_gdh),
-            df_ad_prima    = read_excel(ad_prima),
             postCeseService=postCeseService,
             accountTypeService=accountTypeService,
         )

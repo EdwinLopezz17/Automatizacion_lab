@@ -9,7 +9,7 @@ from core.utils import to_date
 class ADUserInfo:
     usuario: str
     nombre: str
-    corre: str
+    correo: str
     rol: str
     isActivo: bool
     fecha_creacion: date
@@ -38,7 +38,7 @@ class ADService:
                     self._cache[usuario] = ADUserInfo(
                         usuario = str(row.get('SAMACCOUNTNAME','')).strip(),
                         nombre = str(row.get('DISPLAYNAME','')).strip(),
-                        corre = str(row.get('MAIL','')).strip(),
+                        correo = str(row.get('MAIL','')).strip(),
                         rol = str(row.get('IPPHONE','')).strip(),
                         isActivo = str(row.get('ENABLED', '')).strip().upper() in ["TRUE", "1", "YES"],
                         fecha_creacion = to_date(row.get('WHENCREATED')),
@@ -52,9 +52,33 @@ class ADService:
     def get_AD_user(self, usuario: str) -> ADUserInfo:
         key = str(usuario).strip().upper()
         return self._cache.get(key, ADUserInfo(
-            usuario=key, nombre="No encontrado", corre="n/a", rol="n/a",
+            usuario="", nombre="No encontrado", correo="n/a", rol="n/a",
             isActivo=False, fecha_creacion=None, fecha_ult_login=None, fecha_cambio=None
         ))
     
     def get_all_users_info(self) -> list[ADUserInfo]:
         return list(self._cache.values())
+    
+    def get_AD_user_by_correo(self, correo: str) -> ADUserInfo:
+        if not correo:
+            return self._generar_user_vacio()
+            
+        target_email = str(correo).strip().lower()
+
+        for user_info in self._cache.values():
+            if user_info.correo.strip().lower() == target_email:
+                return user_info
+        
+        return self._generar_user_vacio()
+    
+    def _generar_user_vacio(self) -> ADUserInfo:
+            return ADUserInfo(
+                usuario= "", 
+                nombre="No encontrado", 
+                correo="n/a", 
+                rol="n/a",
+                isActivo=False, 
+                fecha_creacion=None, 
+                fecha_ult_login=None, 
+                fecha_cambio=None
+            )

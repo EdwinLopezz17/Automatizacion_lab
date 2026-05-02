@@ -97,6 +97,14 @@ class GDHUserService:
             fecha_cese=None, isActivo=False, isCesado=False
         )
     
+    def get_full_name(self, matricula: str) -> str:
+        key = str(matricula).strip().upper() if matricula else ""
+        user = self._cache.get(key)
+        
+        if user:
+            return user.nombre + " " + user.apellido_paterno + " " + user.apellido_materno
+        return ""
+    
     def get_all_GDH_user(self) -> list[GDHUserInfo]:
         return list(self._cache.values())
     

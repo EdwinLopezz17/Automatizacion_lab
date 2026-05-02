@@ -5,6 +5,7 @@ from core.normalizer import normalizar_df
 from core.excel_writer import _crear_wb_vacio, _df_to_sheet, wb_to_buffer
 from core.post_cese_service import PostCeseService
 from core.account_type_service import AccountTypeService
+from core.gdh_service import GDHUserService
 from core.utils import to_date
 
 def _find(df, candidates):
@@ -70,15 +71,13 @@ def _build_ces_map(df_ces):
         }
     return ces_map, ces_set
 
-def _construir_hoja(df_raw, df_login, df_gdh, df_cesados, fecha_ref: date, 
+def _construir_hoja(df_raw, df_login, fecha_ref: date, gdh_service:GDHUserService,
                     pCeseSrv:PostCeseService, accTypeSrv: AccountTypeService , aplicacion: str):
     if df_raw is None or df_raw.empty:
         return pd.DataFrame()
 
     df = normalizar_df(df_raw)
     login_map = _build_login_map(df_login)
-    gdh_map, gdh_set = _build_gdh_map(df_gdh)
-    ces_map, ces_set = _build_ces_map(df_cesados)
 
     un_col = _find(df, ["USERNAME"])
     st_col = _find(df, ["ACCOUNT_STATUS"])
@@ -99,10 +98,9 @@ def _construir_hoja(df_raw, df_login, df_gdh, df_cesados, fecha_ref: date,
         fec_crea = to_date(row[cr_col]) if cr_col else None
         ult_log = login_map.get(mat)
 
-        nombre = gdh_map.get(mat) or (ces_map[mat]["nombre"] if mat in ces_map else "")
-        activo_gdh = "si" if mat in gdh_set else "no"
-        cesado  = "si" if mat in ces_set else "no"
-        fecha_cese = ces_map[mat]["fecha_cese"] if cesado == "si" else None
+        gdh_user = gdh_service.get_GDH_user(mat)
+        nombre = gdh_service.get_full_name(mat)
+        fecha_cese = gdh_user.fecha_cese
 
         #sin uso
         if estado == "bloqueado":
@@ -116,15 +114,16 @@ def _construir_hoja(df_raw, df_login, df_gdh, df_cesados, fecha_ref: date,
 
         #bl30
         blq30 = "Correcto"
-        if estado == "bloqueado" and cesado == "si":
+        if estado == "bloqueado" and gdh_user.isCesado:
             if not fec_blq or (fecha_ref - fec_blq).days > 30:
                 blq30 = "Incorrecto"
 
-        cesado_activo  = "Incorrecto" if (estado == "activo" and cesado == "si") else "Correcto"
+        cesado_activo  = "Incorrecto" if (estado == "activo" and gdh_user.isCesado) else "Correcto"
+
         sustento = (
-            "Incorrecto"
-            if estado == "activo" and activo_gdh == "no" and cesado == "no"
-            else "Correcto"
+            "Correcto"
+            if estado == "activo" and (gdh_user.isCesado or gdh_user.isActivo)
+            else "Incorrecto"
         )
 
         rows.append({
@@ -136,8 +135,8 @@ def _construir_hoja(df_raw, df_login, df_gdh, df_cesados, fecha_ref: date,
             "Fecha Creación": fec_crea,
             "Fecha Bloqueo": fec_blq,
             "Ultimo Login": ult_log,
-            "activoGDH": activo_gdh,
-            "cesadoGDH": cesado,
+            "activoGDH": "si" if gdh_user.isActivo else "no",
+            "cesadoGDH": "si" if gdh_user.isCesado else "no",
             "Fecha Cese": fecha_cese,
             "sinUso>90d": sin_uso,
             "bloqueado>30d": blq30,
@@ -150,13 +149,12 @@ def _construir_hoja(df_raw, df_login, df_gdh, df_cesados, fecha_ref: date,
 
     return pd.DataFrame(rows).sort_values("Nombre", ignore_index=True)
 
-def _construir_hoja_sit(df_raw, df_gdh, df_cesados, fecha_ref: date, pCeseSrv:PostCeseService, accTypeSrv: AccountTypeService):
+def _construir_hoja_sit(df_raw, fecha_ref: date, gdh_service:GDHUserService,
+                        pCeseSrv:PostCeseService, accTypeSrv: AccountTypeService):
     if df_raw is None or df_raw.empty:
         return pd.DataFrame()
 
     df = normalizar_df(df_raw)
-    gdh_map, gdh_set = _build_gdh_map(df_gdh)
-    ces_map, ces_set = _build_ces_map(df_cesados)
 
     ln_col = _find(df, ["LOGINNAME"])
     ia_col = _find(df, ["ISACTIVE"])
@@ -180,10 +178,9 @@ def _construir_hoja_sit(df_raw, df_gdh, df_cesados, fecha_ref: date, pCeseSrv:Po
         fec_blq = to_date(row[up_col], "DMA") if up_col else None
         ult_log = to_date(row[ul_col], "DMA") if ul_col else None
 
-        nombre = gdh_map.get(mat) or (ces_map[mat]["nombre"] if mat in ces_map else "")
-        activo_gdh = "si" if mat in gdh_set else "no"
-        cesado  = "si" if mat in ces_set else "no"
-        fecha_cese = ces_map[mat]["fecha_cese"] if cesado == "si" else None
+        gdh_user = gdh_service.get_GDH_user(mat)
+        nombre = gdh_service.get_full_name(mat)
+        fecha_cese = gdh_user.fecha_cese
 
         #sin uso 90d
         if estado == "bloqueado":
@@ -201,13 +198,13 @@ def _construir_hoja_sit(df_raw, df_gdh, df_cesados, fecha_ref: date, pCeseSrv:Po
             if not fec_blq or (fecha_ref - fec_blq).days > 30:
                 blq30 = "Incorrecto"
 
-        cesado_activo  = "Incorrecto" if (estado == "activo" and cesado == "si") else "Correcto"
-        sustento = (
-            "INCORRECTO"
-            if estado == "activo" and activo_gdh == "no" and cesado == "no"
-            else "CORRECTO"
-        )
+        cesado_activo  = "Incorrecto" if (estado == "activo" and gdh_user.isCesado) else "Correcto"
 
+        sustento = (
+            "Correcto"
+            if estado == "activo" and (gdh_user.isCesado or gdh_user.isActivo)
+            else "Incorrecto"
+        )
         
         rows.append({
             "Usuario": usuario,
@@ -218,8 +215,8 @@ def _construir_hoja_sit(df_raw, df_gdh, df_cesados, fecha_ref: date, pCeseSrv:Po
             "Fecha Creación": fec_crea,
             "Fecha Bloqueo": fec_blq,
             "Ultimo Login": ult_log,
-            "activoGDH": activo_gdh,
-            "cesadoGDH": cesado,
+            "activoGDH": "si" if gdh_user.isActivo else "no",
+            "cesadoGDH": "si" if gdh_user.isCesado else "no",
             "Fecha Cese": fecha_cese,
             "sinUso>90d": sin_uso,
             "bloqueado>30d": blq30,
@@ -233,7 +230,6 @@ def _construir_hoja_sit(df_raw, df_gdh, df_cesados, fecha_ref: date, pCeseSrv:Po
     return pd.DataFrame(rows).sort_values("Nombre", ignore_index=True)
 
 def generar_reporte_hallazgos_base_datos(
-    df_gdh, df_cesados,
     df_sdp, df_sdp_login,
     df_exactus,
     df_exactus_login,
@@ -243,12 +239,12 @@ def generar_reporte_hallazgos_base_datos(
     postCeseService: PostCeseService
 
 ) -> io.BytesIO:
+    
+    gdh_service = GDHUserService()
 
-    args_comunes = (df_gdh, df_cesados, fecha_ref)
-
-    df_hoja_sdp = _construir_hoja(df_sdp, df_sdp_login, *args_comunes, postCeseService, accountTypeService, "DB_SDP")
-    df_hoja_exactus = _construir_hoja(df_exactus, df_exactus_login, *args_comunes, postCeseService, accountTypeService, "DB_EXACTUS")
-    df_hoja_sit = _construir_hoja_sit(df_sit, *args_comunes, postCeseService, accountTypeService)
+    df_hoja_sdp = _construir_hoja(df_sdp, df_sdp_login, fecha_ref, gdh_service, postCeseService, accountTypeService, "DB_SDP")
+    df_hoja_exactus = _construir_hoja(df_exactus, df_exactus_login, fecha_ref, gdh_service, postCeseService, accountTypeService, "DB_EXACTUS")
+    df_hoja_sit = _construir_hoja_sit(df_sit, fecha_ref, gdh_service, postCeseService, accountTypeService)
 
     wb = _crear_wb_vacio()
     _df_to_sheet(wb, "DB SDP", df_hoja_sdp)

@@ -42,8 +42,6 @@ app.add_middleware(
 
 @app.post("/reporte/hallazgos-base-datos")
 async def reporte_hallazgos_base_datos(
-    activos_gdh: UploadFile = File(...),
-    cesados_gdh: UploadFile = File(...),
     users_db_sdp: UploadFile = File(...),
     users_db_sdp_login: UploadFile = File(...),
     users_db_exactus: UploadFile = File(None),
@@ -60,8 +58,6 @@ async def reporte_hallazgos_base_datos(
         postCeseService.cargar_desde_db()
         accountTypeService.cargar_desde_db()
 
-        df_gdh     = read_excel(activos_gdh)
-        df_cesados = read_excel(cesados_gdh)
         df_sdp     = read_excel(users_db_sdp)
         df_sdp_log = read_excel(users_db_sdp_login)
         df_exa     = read_excel(users_db_exactus)       if (users_db_exactus      and users_db_exactus.filename)      else None
@@ -69,7 +65,6 @@ async def reporte_hallazgos_base_datos(
         df_sit     = read_excel(users_db_sit)           if (users_db_sit           and users_db_sit.filename)           else None
 
         buf = services.generar_reporte_hallazgos_base_datos(
-            df_gdh=df_gdh, df_cesados=df_cesados,
             df_sdp=df_sdp, df_sdp_login=df_sdp_log,
             df_exactus=df_exa, df_exactus_login=df_exa_log,
             df_sit=df_sit,

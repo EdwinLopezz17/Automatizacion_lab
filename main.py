@@ -6,7 +6,6 @@ from pathlib import Path
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
-from typing import List
 
 from core.file_reader import read_excel
 from reports.hallazgos_cesados_v2 import generar_reporte_hallazgos_cesados
@@ -14,8 +13,6 @@ from reports.hallazgos_aplicaciones_criticas import generar_reporte_hallazgos_ap
 from reports.hallazgos_entra_id import generar_reporte_hallazgos_entra_id
 from reports.hallazgos_base_datos import generar_reporte_hallazgos_base_datos
 from reports.hallazgos_ad import generar_reporte_hallazgos_ad
-from services.account_type_service import AccountTypeService
-from services.post_cese_service import PostCeseService
 from routers import historico
 from routers import entra_login_router
 
@@ -45,16 +42,12 @@ app.add_middleware(
 
 @app.post("/reporte/hallazgos-base-datos")
 async def reporte_hallazgos_base_datos(
-    users_db_sit: UploadFile = File(None),
     fecha_ref: str = Form(""),
 ):
     try:
         fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
 
-        df_sit     = read_excel(users_db_sit) if (users_db_sit and users_db_sit.filename) else None
-
         buf = generar_reporte_hallazgos_base_datos(
-            df_sit=df_sit,
             fecha_ref=fref,
         )
     except Exception:
@@ -87,7 +80,6 @@ async def reporte_hallazgos_ad(
 
 @app.post("/reporte/hallazgos-cesados")
 async def reporte_hallazgos_cesados(
-    users_db_sit: UploadFile = File(None),
     sit_habilitados: UploadFile = File(...),
     npac_habilitados: UploadFile = File(...),
 ):
@@ -95,7 +87,6 @@ async def reporte_hallazgos_cesados(
         buf = generar_reporte_hallazgos_cesados(
             df_sit_hab = read_excel(sit_habilitados),
             df_npac_hab = read_excel(npac_habilitados),
-            df_db_sit = read_excel(users_db_sit) if (users_db_sit and users_db_sit.filename) else None,
         )
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())

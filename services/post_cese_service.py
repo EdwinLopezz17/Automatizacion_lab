@@ -6,6 +6,8 @@ class PostCeseService:
         self.db_path = db_path
         self._excepciones: set[tuple] = set()
 
+        self.cargar_desde_db()
+
     def cargar_desde_db(self) -> None:
         self._excepciones = set()
         try:

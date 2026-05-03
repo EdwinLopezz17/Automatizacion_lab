@@ -43,35 +43,17 @@ app.add_middleware(
 
 @app.post("/reporte/hallazgos-base-datos")
 async def reporte_hallazgos_base_datos(
-    users_db_sdp: UploadFile = File(...),
-    users_db_sdp_login: UploadFile = File(...),
-    users_db_exactus: UploadFile = File(None),
-    users_db_exactus_login: UploadFile = File(None),
     users_db_sit: UploadFile = File(None),
     fecha_ref: str = Form(""),
 ):
     try:
         fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
-        
-        postCeseService = PostCeseService()
-        accountTypeService = AccountTypeService()
 
-        postCeseService.cargar_desde_db()
-        accountTypeService.cargar_desde_db()
-
-        df_sdp     = read_excel(users_db_sdp)
-        df_sdp_log = read_excel(users_db_sdp_login)
-        df_exa     = read_excel(users_db_exactus)       if (users_db_exactus      and users_db_exactus.filename)      else None
-        df_exa_log = read_excel(users_db_exactus_login) if (users_db_exactus_login and users_db_exactus_login.filename) else None
-        df_sit     = read_excel(users_db_sit)           if (users_db_sit           and users_db_sit.filename)           else None
+        df_sit     = read_excel(users_db_sit) if (users_db_sit and users_db_sit.filename) else None
 
         buf = generar_reporte_hallazgos_base_datos(
-            df_sdp=df_sdp, df_sdp_login=df_sdp_log,
-            df_exactus=df_exa, df_exactus_login=df_exa_log,
             df_sit=df_sit,
             fecha_ref=fref,
-            accountTypeService=accountTypeService,
-            postCeseService=postCeseService,
         )
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())

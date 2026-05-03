@@ -11,6 +11,8 @@ class AccountTypeService:
     def __init__(self, db_path: str = "certs_data.db"):
         self._cache: dict[str, AccountInfo] = {}
         self.db_path = db_path
+        
+        self.cargar_desde_db()
 
     def cargar_desde_db(self) -> None:
         self._cache = {}

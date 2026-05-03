@@ -121,7 +121,7 @@ def _construir_hoja_sit(df_raw, fecha_ref: date, gdh_service:GDHUserService,
         elif ult_log and (fecha_ref - ult_log).days <= 90:
             sin_uso = "Correcto"
         else:
-            sin_uso = "Inorrecto"
+            sin_uso = "Incorrecto"
 
         #blq30
         blq30 = "Correcto"
@@ -130,11 +130,7 @@ def _construir_hoja_sit(df_raw, fecha_ref: date, gdh_service:GDHUserService,
                 blq30 = "Incorrecto"
 
         cesado_activo  = "Incorrecto" if (estado == "activo" and gdh_user.isCesado) else "Correcto"
-        sustento = (
-            "Correcto"
-            if estado == "activo" and (gdh_user.isCesado or gdh_user.isActivo)
-            else "Incorrecto"
-        )
+        sin_sustento = "Incorrecto" if (estado == "activo" and not gdh_user.isCesado and not gdh_user.isActivo) else "Correcto"
         
         rows.append({
             "Usuario": usuario,
@@ -152,7 +148,7 @@ def _construir_hoja_sit(df_raw, fecha_ref: date, gdh_service:GDHUserService,
             "bloqueado>30d": blq30,
             "cesadoActivo": cesado_activo,
             "actividadPostCese": "Incorrecto" if pCeseSrv.es_post_cese(mat, "DB_SIT", fecha_cese, ult_log) else "Correcto",
-            "Sin Sustento": sustento,
+            "Sin Sustento": sin_sustento,
             "Validación Final": "",
             "Acción Correctiva": "",
         })

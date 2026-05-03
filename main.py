@@ -17,6 +17,7 @@ from reports.hallazgos_ad import generar_reporte_hallazgos_ad
 from services.account_type_service import AccountTypeService
 from services.post_cese_service import PostCeseService
 from routers import historico
+from routers import entra_login_router
 
 app = FastAPI(title="Auditoría de Accesos API", version="-.-.-")
 
@@ -28,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(historico.router)
+app.include_router(entra_login_router.router)
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = Path(sys._MEIPASS)
@@ -88,16 +90,12 @@ async def reporte_hallazgos_cesados(
     users_db_sit: UploadFile = File(None),
     sit_habilitados: UploadFile = File(...),
     npac_habilitados: UploadFile = File(...),
-    entra_id_files: List[UploadFile] = File(...),
-    usuarios_entra_id: UploadFile = File(None),
 ):
     try:
         buf = generar_reporte_hallazgos_cesados(
             df_sit_hab = read_excel(sit_habilitados),
             df_npac_hab = read_excel(npac_habilitados),
             df_db_sit = read_excel(users_db_sit) if (users_db_sit and users_db_sit.filename) else None,
-            dfs_entra_id = [read_excel(f) for f in entra_id_files if f and f.filename],
-            df_usuarios_entra_id = read_excel(usuarios_entra_id) if (usuarios_entra_id and usuarios_entra_id.filename) else None,
         )
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
@@ -132,13 +130,10 @@ async def reporte_hallazgos_aplicaciones_criticas(
     )
 
 @app.post("/reporte/hallazgos-entra-id")
-async def reporte_hallazgos_entra_id(
-    usuarios_entra_id: UploadFile = File(...),
-):
+async def reporte_hallazgos_entra_id():
     try:
-        buf = generar_reporte_hallazgos_entra_id(
-            df_entra_id    = read_excel(usuarios_entra_id),
-        )
+        buf = generar_reporte_hallazgos_entra_id()
+
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
 
@@ -147,4 +142,3 @@ async def reporte_hallazgos_entra_id(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="Hallazgos EntraID.xlsx"'},
     )
-

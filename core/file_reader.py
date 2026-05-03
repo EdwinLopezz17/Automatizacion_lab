@@ -1,6 +1,5 @@
 import pandas as pd
 from fastapi import HTTPException, UploadFile
-import io
 
 def limpiar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:

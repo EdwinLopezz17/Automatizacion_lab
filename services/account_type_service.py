@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 from dataclasses import dataclass
+import re
 
 @dataclass
 class AccountInfo:
@@ -11,7 +12,7 @@ class AccountTypeService:
     def __init__(self, db_path: str = "certs_data.db"):
         self._cache: dict[str, AccountInfo] = {}
         self.db_path = db_path
-        
+
         self.cargar_desde_db()
 
     def cargar_desde_db(self) -> None:
@@ -39,17 +40,19 @@ class AccountTypeService:
         key = str(usuario).strip().upper()
         if key in self._cache:
             return self._cache[key]
-        
+
         tipo_calculado = "sin clasificar"
         
-        if len(key) > 1 and key[0] in ("T", "S", "P") and key[1].isdigit():
+        if not key:
+            return AccountInfo(tipo=tipo_calculado, matricula="")
+
+        if re.match(r'^[TSP]\d+', key):
             tipo_calculado = "usuario"
         
-        elif len(key) > 2 and key.startswith(("XP", "XS", "XT")) and key[2].isdigit():
+        elif re.match(r'^X[PST]\d+', key):
             tipo_calculado = "proxy"
 
         return AccountInfo(
             tipo=tipo_calculado,
             matricula=key
         )
-

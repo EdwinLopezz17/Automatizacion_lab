@@ -6,7 +6,7 @@ from services.post_cese_service import PostCeseService
 from services.account_type_service import AccountTypeService
 from services.ad_service import ADService
 from services.gdh_service import GDHUserService
-from core.utils import to_date
+from services.entra_service import EntraIDService
 
 DATE_COLS_ENTRA = {"Fecha Creación", "Fecha Cese"}
 
@@ -22,66 +22,41 @@ def _find(df, candidates):
                 return orig_c
     return None
 
-def generar_reporte_hallazgos_entra_id(
-    df_entra_id:    pd.DataFrame,
-) -> io.BytesIO:
+def generar_reporte_hallazgos_entra_id() -> io.BytesIO:
     
     accountTypeService = AccountTypeService()
+    postCeseService = PostCeseService()
     ad_service = ADService()
     gdh_service = GDHUserService()
-
-    entra = df_entra_id.copy()
-    entra.columns = [str(c).strip() for c in entra.columns]
-
-    c_mail = _find(entra, ["mail"])
-    c_upn  = _find(entra, ["userPrincipalName"])
-    c_city = _find(entra, ["city"])
-    c_disp = _find(entra, ["displayName"])
-    c_enab = _find(entra, ["accountEnabled"])
-    c_crea = _find(entra, ["createdDateTime"])
+    entra_service = EntraIDService()
 
     rows = []
-    for _, row in entra.iterrows():
-        correo_key = ""
-        if c_mail:
-            val = str(row[c_mail]).strip()
-            if val and val.lower() not in ("nan", "none", ""):
-                correo_key = val.upper()
-        if not correo_key and c_upn:
-            val = str(row[c_upn]).strip()
-            if val and val.lower() not in ("nan", "none", ""):
-                correo_key = val.upper()
-
-        if accountTypeService.get(correo_key).tipo == "servicio":
-            continue
-
-        matricula = ad_service.get_AD_user_by_correo(correo_key).usuario
-        
+    for entra_user in entra_service.get_all_UsersEntraID():
+    
+        matricula = ad_service.get_AD_user_by_correo(entra_user.mail).usuario
         if not matricula:
-            if c_city:
-                val_city = str(row[c_city]).strip()
-                if val_city and val_city.lower() not in ("nan", "none", ""):
-                    matricula = val_city.upper()
+            matricula = entra_user.city
 
-        tipo = accountTypeService.get(matricula).tipo
+        tipo = accountTypeService.get(entra_user.mail).tipo
+        if tipo == "sin clasificar":
+            tipo = accountTypeService.get(matricula).tipo
 
-        nombre = str(row[c_disp]).strip() if c_disp else ""
-        estado = "Activo" if str(row[c_enab]).strip().upper() == "TRUE" else "Bloqueado"
-        fec_creacion = to_date(row[c_crea]) if c_crea else None
+        if tipo == "servicio":
+            continue
 
         userGDH = gdh_service.get_GDH_user(matricula)
 
         fecha_cese = userGDH.fecha_cese
-        cesado_activo = "Incorrecto" if (estado == "Activo" and userGDH.isCesado) else "Correcto"
-        sin_sustento = "Incorrecto" if estado == "Activo" and not userGDH.isCesado and not userGDH.isActivo else "Correcto"
+        cesado_activo = "Incorrecto" if (entra_user.account_enabled and userGDH.isCesado) else "Correcto"
+        sin_sustento = "Incorrecto" if (entra_user.account_enabled and not userGDH.isCesado and not userGDH.isActivo) else "Correcto"
 
         rows.append({
-            "Correo": correo_key.lower(),
+            "Correo": entra_user.mail,
             "Matricula (SAM/City)": matricula,
             "Tipo de Cuenta": tipo,
-            "Nombre": nombre,
-            "Estado": estado,
-            "Fecha Creación": fec_creacion,
+            "Nombre": entra_user.display_name,
+            "Estado": "Activo" if entra_user.account_enabled else "Bloqueado",
+            "Fecha Creación": entra_user.created_date_time,
             "activoGDH": "si" if userGDH.isActivo else "no",
             "cesadoGDH": "si" if userGDH.isCesado else "no",
             "Fecha Cese": fecha_cese,

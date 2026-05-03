@@ -73,10 +73,10 @@ class ADService:
     
     def _generar_user_vacio(self) -> ADUserInfo:
             return ADUserInfo(
-                usuario= "", 
-                nombre="No encontrado", 
-                correo="n/a", 
-                rol="n/a",
+                usuario="", 
+                nombre="", 
+                correo="", 
+                rol="",
                 isActivo=False, 
                 fecha_creacion=None, 
                 fecha_ult_login=None, 

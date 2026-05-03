@@ -9,10 +9,10 @@ from services.gdh_service import GDHUserService
 
 def generar_reporte_hallazgos_ad(
     fecha_ref: date,
-    accountTypeService: AccountTypeService,
-    postCeseService: PostCeseService
 ) -> io.BytesIO:
 
+    accountTypeService = AccountTypeService()
+    postCeseService = PostCeseService()
     ad_service = ADService()
     gdh_service = GDHUserService()
 

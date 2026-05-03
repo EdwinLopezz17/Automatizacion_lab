@@ -9,7 +9,8 @@ from services.post_cese_service import PostCeseService
 from services.account_type_service import AccountTypeService
 from services.ad_service import ADService
 from services.gdh_service import GDHUserService, GDHUserInfo
-from core.utils import to_date
+from services.app_exactus_service import AppExactusService
+from services.app_sdp_service import AppSdpService
 
 DATE_COLS_APP = {"Fecha Creación", "Ultimo Login", "Fecha Cese"}
 DATE_COLS_AD  = {"Fecha Creación AD", "Ultimo Login AD", "Fecha Cese"}
@@ -114,94 +115,51 @@ def _base_row(
     }
 
 def _hoja_exactus(
-    df_usr: pd.DataFrame,
-    df_login: pd.DataFrame,
+    app_exactus_service: AppExactusService,
     fecha_ref: date,
     gdh_service: GDHUserService,
     accountTypeService: AccountTypeService,
     postCeseService: PostCeseService,
 ) -> pd.DataFrame:
 
-    usr = normalizar_df(df_usr)
-    c_usuario = _find(usr, ["USUARIO"])
-    c_nombre = _find(usr, ["NOMBRE"])
-    c_activo = _find(usr, ["ACTIVO"])
-    c_createdate = _find(usr, ["CREATEDATE"])
-    login_map = _build_login_map(
-        df_login, ["USUARIO"], ["ULTIMO_LOGUIN"],
-    )
-
     rows = []
-    for _, row in usr.iterrows():
-        usuario = _safe_upper(row, c_usuario) or ""
-        account_info = accountTypeService.get(usuario)
+    for app_exactus in app_exactus_service.get_all_UsersAppExactus():
+        account_info = accountTypeService.get(app_exactus.usuario)
         tipo = account_info.tipo
         matricula = account_info.matricula
         
-        if tipo == "servicio" or tipo == "proxy":
+        if tipo == "servicio" or tipo == "proxy" or not app_exactus.isActivo:
             continue
 
         gdh_user = gdh_service.get_GDH_user(matricula)
-        
-        if not gdh_user.nombre:
-            gdh_user.nombre = str(row[c_nombre]).strip() if c_nombre and pd.notna(row.get(c_nombre)) else ""
 
-        activo_raw = _safe_upper(row, c_activo) or ""
-        is_app_active = activo_raw == "S"
-        if not is_app_active:
-            continue
-
-        fec_creacion = to_date(row[c_createdate]) if c_createdate and pd.notna(row.get(c_createdate)) else None
-        ult_login = to_date(login_map.get(usuario))
-
-        rows.append(_base_row(
-            usuario, gdh_user, ult_login, is_app_active, fecha_ref,
-            "APP_Exactus", postCeseService, tipo, fec_creacion
+        rows.append(_base_row( 
+            app_exactus.usuario, gdh_user, app_exactus.fecha_login, app_exactus.isActivo, fecha_ref,
+            "APP_SDP", postCeseService, tipo, app_exactus.fecha_creacion
         ))
 
     return pd.DataFrame(rows)
 
 def _hoja_sdp(
-    df_usuarios: pd.DataFrame,
-    df_login: Optional[pd.DataFrame],
-    gdh_service: GDHUserService,
+    app_sdp_service: AppSdpService,
     fecha_ref: date,
+    gdh_service: GDHUserService,
     accountTypeService: AccountTypeService,
     postCeseService:    PostCeseService,
 ) -> pd.DataFrame:
-    if df_usuarios is None or df_usuarios.empty:
-        return pd.DataFrame()
-
-    sdp = normalizar_df(df_usuarios)
-    c_usuario = _find(sdp, ["COD_USUARIO", "COD USUARIO"])
-    c_est = _find(sdp, ["EST_ACTIVO", "EST ACTIVO"])
-    c_creacion = _find(sdp, ["FEC_INCLUSION"])
-    login_map = _build_login_map(
-        df_login, ["COD_USUARIO", "COD USUARIO"],
-        ["FECHALOGIN", "FECHA LOGIN", "FECHA_LOGIN"],
-    )
 
     rows = []
-    for _, row in sdp.iterrows():
-        usuario      = _safe_upper(row, c_usuario) or ""
-        account_info = accountTypeService.get(usuario)
-        tipo         = account_info.tipo
-        if tipo == "servicio" or tipo == "proxy":
+    for app_sdp in app_sdp_service.get_all_UsersAppSdp():
+        account_info = accountTypeService.get(app_sdp.usuario)
+        tipo = account_info.tipo
+        if tipo == "servicio" or tipo == "proxy" or not app_sdp.isActivo:
             continue
 
         gdh_user = gdh_service.get_GDH_user(account_info.matricula)
 
-        est_raw = _safe_upper(row, c_est) or ""
-        is_app_active = est_raw == "S"
-        if not is_app_active:
-            continue
-
-        fec_creacion_app = to_date(row[c_creacion]) if c_creacion and pd.notna(row.get(c_creacion)) else None
-        ult_login = to_date(login_map.get(usuario))
-
-        rows.append(_base_row(
-            usuario, gdh_user, ult_login, is_app_active, fecha_ref,
-            "APP_SDP", postCeseService, tipo, fec_creacion_app
+        rows.append(_base_row( 
+            app_sdp.usuario, gdh_user, app_sdp.fecha_login, app_sdp.isActivo, fecha_ref,
+            "APP_SDP", postCeseService, tipo, app_sdp.fecha_creacion
         ))
 
     return pd.DataFrame(rows)
@@ -252,29 +210,27 @@ def _hoja_ad_based(
     return pd.DataFrame(rows)
 
 def generar_reporte_hallazgos_aplicaciones_criticas(
-    df_usr_exactus: pd.DataFrame,
-    df_login_exactus: pd.DataFrame,
-    df_sdp_usuarios: pd.DataFrame,
-    df_sdp_login: pd.DataFrame,
     df_npac_habilitados: pd.DataFrame,
     df_sit_habilitados: pd.DataFrame,
     fecha_ref: date,
-    accountTypeService: AccountTypeService,
-    postCeseService: PostCeseService,
 ) -> io.BytesIO:
 
+    accountTypeService = AccountTypeService()
+    postCeseService = PostCeseService()
     ad_service = ADService()
     gdh_service = GDHUserService()
-
+    app_sdp_service = AppSdpService()
+    app_exactus_service = AppExactusService()
+    
     sheets = [
         (
             "App Exactus",
-            _hoja_exactus(df_usr_exactus, df_login_exactus, fecha_ref, gdh_service, accountTypeService, postCeseService),
+            _hoja_exactus(app_exactus_service, fecha_ref, gdh_service, accountTypeService, postCeseService),
             DATE_COLS_APP,
         ),
         (
             "App SDP",
-            _hoja_sdp(df_sdp_usuarios, df_sdp_login, gdh_service, fecha_ref, accountTypeService, postCeseService),
+            _hoja_sdp(app_sdp_service, fecha_ref, gdh_service, accountTypeService, postCeseService),
             DATE_COLS_APP,
         ),
         (

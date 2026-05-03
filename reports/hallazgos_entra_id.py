@@ -24,10 +24,9 @@ def _find(df, candidates):
 
 def generar_reporte_hallazgos_entra_id(
     df_entra_id:    pd.DataFrame,
-    accountTypeService: AccountTypeService,
-    postCeseService: PostCeseService
 ) -> io.BytesIO:
     
+    accountTypeService = AccountTypeService()
     ad_service = ADService()
     gdh_service = GDHUserService()
 

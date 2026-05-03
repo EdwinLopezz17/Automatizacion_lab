@@ -70,18 +70,9 @@ async def reporte_hallazgos_ad(
 ):
     try:
         fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
-
-        postCeseService = PostCeseService()
-        accountTypeService = AccountTypeService()
-
-        postCeseService.cargar_desde_db()
-        accountTypeService.cargar_desde_db()
         
         buf = generar_reporte_hallazgos_ad(
             fecha_ref=fref,
-            accountTypeService=accountTypeService,
-            postCeseService=postCeseService,
-
         )
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
@@ -95,23 +86,15 @@ async def reporte_hallazgos_ad(
 @app.post("/reporte/hallazgos-cesados")
 async def reporte_hallazgos_cesados(
     users_db_sit: UploadFile = File(None),
-    usr_exactus: UploadFile = File(...),
-    login_exactus: UploadFile = File(...),
     sit_habilitados: UploadFile = File(...),
     npac_habilitados: UploadFile = File(...),
-    sdp_usuarios: UploadFile = File(...),
-    sdp_login: UploadFile = File(...),
     entra_id_files: List[UploadFile] = File(...),
     usuarios_entra_id: UploadFile = File(None),
 ):
     try:
         buf = generar_reporte_hallazgos_cesados(
-            df_usr_exactus = read_excel(usr_exactus),
-            df_login_exactus = read_excel(login_exactus),
             df_sit_hab = read_excel(sit_habilitados),
             df_npac_hab = read_excel(npac_habilitados),
-            df_sdp_usr = read_excel(sdp_usuarios),
-            df_sdp_login = read_excel(sdp_login),
             df_db_sit = read_excel(users_db_sit) if (users_db_sit and users_db_sit.filename) else None,
             dfs_entra_id = [read_excel(f) for f in entra_id_files if f and f.filename],
             df_usuarios_entra_id = read_excel(usuarios_entra_id) if (usuarios_entra_id and usuarios_entra_id.filename) else None,
@@ -127,33 +110,17 @@ async def reporte_hallazgos_cesados(
 
 @app.post("/reporte/hallazgos-aplicaciones-criticas")
 async def reporte_hallazgos_aplicaciones_criticas(
-    usr_exactus:            UploadFile = File(...),
-    login_exactus:          UploadFile = File(...),
-    sdp_usuarios:           UploadFile = File(...),
-    sdp_login:              UploadFile = File(...),
-    npac_habilitados:       UploadFile = File(...),
-    sit_habilitados:        UploadFile = File(...),
-    fecha_ref:              str        = Form(""),
+    npac_habilitados: UploadFile = File(...),
+    sit_habilitados: UploadFile = File(...),
+    fecha_ref: str = Form(""),
 ):
     try:
         fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
-        
-        postCeseService = PostCeseService()
-        accountTypeService = AccountTypeService()
-
-        postCeseService.cargar_desde_db()
-        accountTypeService.cargar_desde_db()
 
         buf = generar_reporte_hallazgos_aplicaciones_criticas(
-            df_usr_exactus = read_excel(usr_exactus),
-            df_login_exactus = read_excel(login_exactus),
-            df_sdp_usuarios = read_excel(sdp_usuarios),
-            df_sdp_login = read_excel(sdp_login),
             df_npac_habilitados = read_excel(npac_habilitados),
             df_sit_habilitados = read_excel(sit_habilitados),
             fecha_ref = fref,
-            accountTypeService=accountTypeService,
-            postCeseService=postCeseService,
         )
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
@@ -169,16 +136,8 @@ async def reporte_hallazgos_entra_id(
     usuarios_entra_id: UploadFile = File(...),
 ):
     try:
-        postCeseService = PostCeseService()
-        accountTypeService = AccountTypeService()
-
-        postCeseService.cargar_desde_db()
-        accountTypeService.cargar_desde_db()
-
         buf = generar_reporte_hallazgos_entra_id(
             df_entra_id    = read_excel(usuarios_entra_id),
-            postCeseService=postCeseService,
-            accountTypeService=accountTypeService,
         )
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())

@@ -10,6 +10,8 @@ from core.excel_writer import _crear_wb_vacio as crear_wb_vacio, wb_to_buffer, _
 from services.post_cese_service import PostCeseService
 from services.ad_service import ADService
 from services.gdh_service import GDHUserService
+from services.db_exactus_service import DBExactusService
+from services.db_sdp_service import DBSdpService
 
 _entra_lock = threading.Lock()
 def _to_str(val) -> str:
@@ -130,14 +132,15 @@ def _extract_login_map(df, cands_user, cands_date, formato="") -> dict:
 
 def generar_reporte_hallazgos_cesados(
     df_usr_exactus, df_login_exactus, df_sit_hab, df_npac_hab,
-    df_sdp_usr, df_sdp_login, df_db_sit, df_db_sdp, df_db_sdp_login,
-    df_db_exactus, df_db_exactus_login, dfs_entra_id,
-    df_usuarios_entra_id: pd.DataFrame,
-    postCeseService: PostCeseService
+    df_sdp_usr, df_sdp_login, df_db_sit, dfs_entra_id,
+    df_usuarios_entra_id: pd.DataFrame
 ) -> io.BytesIO:
     
+    postCeseService = PostCeseService()
     ad_service = ADService()
     gdh_service = GDHUserService()
+    db_exactus_service = DBExactusService()
+    db_sdp_service = DBSdpService()
 
     df_entra = consolidar_entra_id(dfs_entra_id)
     _n = lambda df: normalizar_df(df) if (df is not None and not df.empty) else pd.DataFrame()
@@ -146,8 +149,6 @@ def generar_reporte_hallazgos_cesados(
     sit_hab = _n(df_sit_hab)
     npac_hab = _n(df_npac_hab)
     sdp_usr = _n(df_sdp_usr)
-    db_sdp = _n(df_db_sdp)
-    db_exa = _n(df_db_exactus)
 
     c_exa_u, c_exa_ac = find_col(usr_exa, ["USUARIO"]), find_col(usr_exa, ["ACTIVO"])
     exa_activo = _build_lookup(usr_exa, c_exa_u, c_exa_ac) if (c_exa_u and c_exa_ac) else {}
@@ -190,14 +191,6 @@ def generar_reporte_hallazgos_cesados(
                         dbsit_login[key] = to_date(raw_fecha)
                     elif key not in dbsit_login:
                         dbsit_login[key] = ""
-
-    c_dbsdp_u, c_dbsdp_st = find_col(db_sdp, ["USERNAME", "USER NAME"]), find_col(db_sdp, ["ACCOUNT_STATUS", "ACCOUNT STATUS"])
-    dbsdp_status = _build_lookup(db_sdp, c_dbsdp_u, c_dbsdp_st) if (c_dbsdp_u and c_dbsdp_st) else {}
-    dbsdp_login  = _extract_login_map(df_db_sdp_login, ["USERNAME", "USER NAME"], ["MAX(DAS.TIMESTAMP)"])
-
-    c_dbexa_u, c_dbexa_st = find_col(db_exa, ["USERNAME", "USER NAME"]), find_col(db_exa, ["ACCOUNT_STATUS", "ACCOUNT STATUS"])
-    dbexa_status = _build_lookup(db_exa, c_dbexa_u, c_dbexa_st) if (c_dbexa_u and c_dbexa_st) else {}
-    dbexa_login  = _extract_login_map(df_db_exactus_login, ["USERNAME", "USER NAME"], ["MAX(DAS.TIMESTAMP)"])
 
     entra_id_enabled_set = set()
     if df_usuarios_entra_id is not None and not df_usuarios_entra_id.empty:
@@ -253,13 +246,11 @@ def generar_reporte_hallazgos_cesados(
         db_sit_val = "Incorrecto" if isactive == "ACTIVO" else "Correcto"
         db_sit_login = dbsit_login.get(matricula, "")
 
-        st_sdp = _to_str(dbsdp_status.get(matricula, ""))
-        db_sdp_val = "Incorrecto" if (st_sdp and "LOCKED" not in st_sdp) else "Correcto"
-        db_sdp_login_val = dbsdp_login.get(matricula, "")
+        db_sdp_user = db_sdp_service.get_UserDBSdp(matricula)
+        db_sdp_val = "Incorrecto" if db_sdp_user.isActivo else "Correcto"
 
-        st_exa = _to_str(dbexa_status.get(matricula, ""))
-        db_exa_val = "Incorrecto" if (st_exa and "LOCKED" not in st_exa) else "Correcto"
-        db_exa_login_val = dbexa_login.get(matricula, "")
+        db_exa_user = db_exactus_service.get_UserDBExactus(matricula)
+        db_exa_val = "Incorrecto" if db_exa_user.isActivo else "Correcto"
 
         ad_nipa_val = "Incorrecto" if ad_user.isActivo else "Correcto"
         ad_nipa_login = ad_user.fecha_ult_login
@@ -271,9 +262,9 @@ def generar_reporte_hallazgos_cesados(
 
         postCeseEntraID = postCeseService.es_post_cese(matricula, "APP_ENTRAID", userCesado.fecha_cese, entra_ult)
         postCeseAppExa =  postCeseService.es_post_cese (matricula, "APP_Exactus", userCesado.fecha_cese, usr_exa_login)
-        postCeseDBExa = postCeseService.es_post_cese (matricula, "DB_EXACTUS", userCesado.fecha_cese, db_exa_login_val)
+        postCeseDBExa = postCeseService.es_post_cese (matricula, "DB_EXACTUS", userCesado.fecha_cese, db_exa_user.fecha_login)
         postCeseAppSDP = postCeseService.es_post_cese (matricula, "APP_SDP", userCesado.fecha_cese, usr_sdp_login)
-        postCEseDBSDP = postCeseService.es_post_cese (matricula, "DB_SDP", userCesado.fecha_cese, db_sdp_login_val)
+        postCEseDBSDP = postCeseService.es_post_cese (matricula, "DB_SDP", userCesado.fecha_cese, db_sdp_user.fecha_login)
         postCeseDBSIT = postCeseService.es_post_cese (matricula, "DB_SIT", userCesado.fecha_cese, db_sit_login)
 
         r = {
@@ -291,13 +282,13 @@ def generar_reporte_hallazgos_cesados(
             "Usr Exactus Ultimo Login": usr_exa_login,
             "PostCese Exactus App": "Incorrecto" if postCeseAppExa else "Correcto",
             "DB Exactus":              db_exa_val,
-            "DB Exactus Ultimo Login": db_exa_login_val,
+            "DB Exactus Ultimo Login": db_exa_user.fecha_login,
             "PostCese DB Exactus": "Incorrecto" if postCeseDBExa else "Correcto",
             "Usr SDP": usr_sdp, 
             "Usr SDP Ultimo Login": usr_sdp_login,
             "PostCese SDP App": "Incorrecto" if postCeseAppSDP else "Correcto",
             "DB SDP":db_sdp_val, 
-            "DB SDP Ultimo Login":db_sdp_login_val,
+            "DB SDP Ultimo Login":db_sdp_user.fecha_login,
             "PostCese DB SDP": "Incorrecto" if postCEseDBSDP else "Correcto",
             "DB SIT":db_sit_val,
             "DB SIT Ultimo Login":db_sit_login,

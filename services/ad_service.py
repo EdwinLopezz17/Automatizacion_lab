@@ -17,9 +17,9 @@ class ADUserInfo:
     fecha_cambio: date
 
 class ADService:
-    def __init__(self, csv_path="datos/ad_data.csv"):
+    def __init__(self):
         self._cache: dict[str, ADUserInfo] = {}
-        self.csv_path = csv_path
+        self.csv_path = "datos/ad_data.csv"
         self.cargar_desde_csv()
 
     def cargar_desde_csv(self) -> None:

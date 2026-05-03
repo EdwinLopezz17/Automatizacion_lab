@@ -3,35 +3,17 @@ import pandas as pd
 from datetime import date
 from typing import Optional
 
-from core.normalizer import normalizar_df
 from core.excel_writer import _crear_wb_vacio, _df_to_sheet, wb_to_buffer
 from services.post_cese_service import PostCeseService
 from services.account_type_service import AccountTypeService
-from services.ad_service import ADService
 from services.gdh_service import GDHUserService, GDHUserInfo
 from services.app_exactus_service import AppExactusService
 from services.app_sdp_service import AppSdpService
+from services.app_sit_service import AppSitService
+from services.app_npac_service import AppNpacService
 
 DATE_COLS_APP = {"Fecha Creación", "Ultimo Login", "Fecha Cese"}
 DATE_COLS_AD  = {"Fecha Creación AD", "Ultimo Login AD", "Fecha Cese"}
-
-def _find(df: pd.DataFrame, candidates: list) -> Optional[str]:
-    up = {str(c).strip().upper(): c for c in df.columns}
-    for cand in candidates:
-        key = cand.strip().upper()
-        if key in up:
-            return up[key]
-    for cand in candidates:
-        key = cand.strip().upper()
-        for norm_c, orig_c in up.items():
-            if key in norm_c or norm_c in key:
-                return orig_c
-    return None
-
-def _safe_upper(row, col: Optional[str]) -> Optional[str]:
-    if col and pd.notna(row.get(col)):
-        return str(row[col]).strip().upper()
-    return None
 
 def _calcular_indicadores(
     gdh_user: GDHUserInfo,
@@ -70,24 +52,6 @@ def _calcular_indicadores(
         "Acción Correctiva": "",
     }
 
-def _build_login_map(
-    df_login: Optional[pd.DataFrame],
-    key_candidates: list,
-    val_candidates: list,
-) -> dict:
-    if df_login is None or df_login.empty:
-        return {}
-    log = normalizar_df(df_login)
-    c_k = _find(log, key_candidates)
-    c_v = _find(log, val_candidates)
-    if not c_k or not c_v:
-        return {}
-    return {
-        str(r[c_k]).strip().upper(): r[c_v]
-        for _, r in log.iterrows()
-        if pd.notna(r[c_k])
-    }
-
 def _base_row(
     usuario: str,
     gdh_user: GDHUserInfo,
@@ -107,7 +71,7 @@ def _base_row(
         "Usuario": usuario,
         "Matrícula": gdh_user.matricula if gdh_user.matricula else usuario,
         "Tipo de Cuenta": tipo,
-        "Nombre": gdh_user.nombre+" "+gdh_user.apellido_paterno+" "+gdh_user.apellido_materno,
+        "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
         "Estado": "Activo" if is_app_active else "Bloqueado",
         "Fecha Creación": fec_creacion_app,
         "Ultimo Login": ult_login,
@@ -128,14 +92,14 @@ def _hoja_exactus(
         tipo = account_info.tipo
         matricula = account_info.matricula
         
-        if tipo == "servicio" or tipo == "proxy" or not app_exactus.isActivo:
+        if tipo in ("servicio", "proxy") or not app_exactus.isActivo:
             continue
 
         gdh_user = gdh_service.get_GDH_user(matricula)
 
         rows.append(_base_row( 
             app_exactus.usuario, gdh_user, app_exactus.fecha_login, app_exactus.isActivo, fecha_ref,
-            "APP_SDP", postCeseService, tipo, app_exactus.fecha_creacion
+            "APP_EXACTUS", postCeseService, tipo, app_exactus.fecha_creacion
         ))
 
     return pd.DataFrame(rows)
@@ -152,7 +116,7 @@ def _hoja_sdp(
     for app_sdp in app_sdp_service.get_all_UsersAppSdp():
         account_info = accountTypeService.get(app_sdp.usuario)
         tipo = account_info.tipo
-        if tipo == "servicio" or tipo == "proxy" or not app_sdp.isActivo:
+        if tipo in ("servicio", "proxy") or not app_sdp.isActivo:
             continue
 
         gdh_user = gdh_service.get_GDH_user(account_info.matricula)
@@ -164,63 +128,87 @@ def _hoja_sdp(
 
     return pd.DataFrame(rows)
 
-def _hoja_ad_based(
-    df_habilitados: pd.DataFrame,
-    ad_service: ADService,
+def _hoja_app_sit(
+    app_sit_service: AppSitService,
     gdh_service: GDHUserService,
     fecha_ref: date,
     aplicacion: str,
     accountTypeService: AccountTypeService,
     postCeseService: PostCeseService,
 ) -> pd.DataFrame:
-    if df_habilitados is None or df_habilitados.empty:
-        return pd.DataFrame()
-
-    hab = normalizar_df(df_habilitados)
-    c_sam = _find(hab, ["SAMACCOUNTNAME", "SAM ACCOUNT NAME"])
 
     rows = []
-    for _, row in hab.iterrows():
-        usuario = _safe_upper(row, c_sam) or ""
-        if not usuario:
-            continue
+    for app_sit_user in app_sit_service.get_app_sit_users():
 
-        account_info = accountTypeService.get(usuario)
+        account_info = accountTypeService.get(app_sit_user.usuario)
         tipo = account_info.tipo
         if tipo == "servicio" or tipo == "proxy":
             continue
 
         gdh_user = gdh_service.get_GDH_user(account_info.matricula)
-        ad_user = ad_service.get_AD_user(usuario)
- 
+
         indicadores = _calcular_indicadores(
-            gdh_user, ad_user.fecha_ult_login, True,ad_user.fecha_creacion, fecha_ref, aplicacion, postCeseService
+            gdh_user, app_sit_user.fecha_ult_login, True,app_sit_user.fecha_creacion, fecha_ref, aplicacion, postCeseService
         )
         rows.append({
-            "Usuario": usuario,
+            "Usuario": app_sit_user.usuario,
             "Matrícula": gdh_user.matricula,
             "Tipo de Cuenta": tipo,
             "Nombre": gdh_user.nombre + " "+gdh_user.apellido_paterno+" "+gdh_user.apellido_materno,
             "Estado": "Activo",
-            "Fecha Creación AD": ad_user.fecha_creacion,
-            "Ultimo Login AD": ad_user.fecha_ult_login,
+            "Fecha Creación AD": app_sit_user.fecha_creacion,
+            "Ultimo Login AD": app_sit_user.fecha_ult_login,
+            **indicadores,
+        })
+
+    return pd.DataFrame(rows)
+
+def _hoja_app_npac(
+    app_npac_service:AppNpacService,
+    gdh_service: GDHUserService,
+    fecha_ref: date,
+    aplicacion: str,
+    accountTypeService: AccountTypeService,
+    postCeseService: PostCeseService,
+) -> pd.DataFrame:
+
+    rows = []
+    for app_npac_user in app_npac_service.get_app_npac_users():
+
+        account_info = accountTypeService.get(app_npac_user.usuario)
+        tipo = account_info.tipo
+        if tipo == "servicio" or tipo == "proxy":
+            continue
+
+        gdh_user = gdh_service.get_GDH_user(account_info.matricula)
+
+        indicadores = _calcular_indicadores(
+            gdh_user, app_npac_user.fecha_ult_login, True, app_npac_user.fecha_creacion, fecha_ref, aplicacion, postCeseService
+        )
+        rows.append({
+            "Usuario": app_npac_user.usuario,
+            "Matrícula": gdh_user.matricula,
+            "Tipo de Cuenta": tipo,
+            "Nombre": gdh_user.nombre + " "+gdh_user.apellido_paterno+" "+gdh_user.apellido_materno,
+            "Estado": "Activo",
+            "Fecha Creación AD": app_npac_user.fecha_creacion,
+            "Ultimo Login AD": app_npac_user.fecha_ult_login,
             **indicadores,
         })
 
     return pd.DataFrame(rows)
 
 def generar_reporte_hallazgos_aplicaciones_criticas(
-    df_npac_habilitados: pd.DataFrame,
-    df_sit_habilitados: pd.DataFrame,
     fecha_ref: date,
 ) -> io.BytesIO:
 
     accountTypeService = AccountTypeService()
     postCeseService = PostCeseService()
-    ad_service = ADService()
     gdh_service = GDHUserService()
     app_sdp_service = AppSdpService()
     app_exactus_service = AppExactusService()
+    app_sit_service = AppSitService()
+    app_npac_service = AppNpacService()
     
     sheets = [
         (
@@ -235,12 +223,12 @@ def generar_reporte_hallazgos_aplicaciones_criticas(
         ),
         (
             "App SIT",
-            _hoja_ad_based(df_sit_habilitados, ad_service, gdh_service, fecha_ref, "APP_SIT", accountTypeService, postCeseService),
+            _hoja_app_sit(app_sit_service, gdh_service, fecha_ref, "APP_SIT", accountTypeService, postCeseService),
             DATE_COLS_AD,
         ),
         (
             "App NPAC",
-            _hoja_ad_based(df_npac_habilitados, ad_service, gdh_service, fecha_ref, "APP_NPAC", accountTypeService, postCeseService),
+            _hoja_app_npac(app_npac_service, gdh_service, fecha_ref, "APP_NPAC", accountTypeService, postCeseService),
             DATE_COLS_AD,
         ),
     ]

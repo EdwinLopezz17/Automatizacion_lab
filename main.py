@@ -5,9 +5,8 @@ from datetime import date
 from pathlib import Path
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi import FastAPI, HTTPException, Form
 
-from core.file_reader import read_excel
 from reports.hallazgos_cesados_v2 import generar_reporte_hallazgos_cesados
 from reports.hallazgos_aplicaciones_criticas import generar_reporte_hallazgos_aplicaciones_criticas
 from reports.hallazgos_entra_id import generar_reporte_hallazgos_entra_id
@@ -79,15 +78,9 @@ async def reporte_hallazgos_ad(
     )
 
 @app.post("/reporte/hallazgos-cesados")
-async def reporte_hallazgos_cesados(
-    sit_habilitados: UploadFile = File(...),
-    npac_habilitados: UploadFile = File(...),
-):
+async def reporte_hallazgos_cesados():
     try:
-        buf = generar_reporte_hallazgos_cesados(
-            df_sit_hab = read_excel(sit_habilitados),
-            df_npac_hab = read_excel(npac_habilitados),
-        )
+        buf = generar_reporte_hallazgos_cesados()
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
 
@@ -99,16 +92,12 @@ async def reporte_hallazgos_cesados(
 
 @app.post("/reporte/hallazgos-aplicaciones-criticas")
 async def reporte_hallazgos_aplicaciones_criticas(
-    npac_habilitados: UploadFile = File(...),
-    sit_habilitados: UploadFile = File(...),
     fecha_ref: str = Form(""),
 ):
     try:
         fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
 
         buf = generar_reporte_hallazgos_aplicaciones_criticas(
-            df_npac_habilitados = read_excel(npac_habilitados),
-            df_sit_habilitados = read_excel(sit_habilitados),
             fecha_ref = fref,
         )
     except Exception:

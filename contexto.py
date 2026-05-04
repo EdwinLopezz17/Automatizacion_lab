@@ -1,8 +1,8 @@
 import os
 
 def generar_contexto_proyecto(ruta_raiz, archivo_salida):
-    extensiones_validas = ('.py', '.js', '.css', '.json', '.sql')
-    carpetas_ignoradas = {'.html', '.git', '__pycache__', 'venv', '.vscode', 'node_modules'}
+    extensiones_validas = ('.py', '.js', '.css', '.json')
+    carpetas_ignoradas = {'.html', '.git', '__pycache__','env', 'venv', '.vscode', 'node_modules'}
     archivo_script = os.path.basename(__file__)
 
     with open(archivo_salida, 'w', encoding='utf-8') as f_out:

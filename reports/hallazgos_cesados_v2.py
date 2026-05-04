@@ -1,7 +1,3 @@
-import io
-import pandas as pd
-
-from core.excel_writer import _crear_wb_vacio as crear_wb_vacio, wb_to_buffer, _df_to_sheet, DATE_COLS_CESADOS
 from services.post_cese_service import PostCeseService
 from services.ad_service import ADService
 from services.gdh_service import GDHUserService
@@ -14,8 +10,8 @@ from services.db_sit_service import DBSitService
 from services.app_sit_service import AppSitService
 from services.app_npac_service import AppNpacService
 
-def generar_reporte_hallazgos_cesados() -> io.BytesIO:
-    
+def generar_reporte_hallazgos_cesados() -> list[dict]:
+
     postCeseService = PostCeseService()
     ad_service = ADService()
     gdh_service = GDHUserService()
@@ -44,58 +40,52 @@ def generar_reporte_hallazgos_cesados() -> io.BytesIO:
         app_npac_user = app_npac_service.get_app_npac_user(matricula)
 
         db_sdp_user = db_sdp_service.get_UserDBSdp(matricula)
-        db_sdp_val = "Incorrecto" if db_sdp_user.isActivo else "Correcto"
-
         db_exa_user = db_exactus_service.get_UserDBExactus(matricula)
-        db_exa_val = "Incorrecto" if db_exa_user.isActivo else "Correcto"
 
-        ad_nipa_val = "Incorrecto" if ad_user.isActivo else "Correcto"
-        ad_nipa_login = ad_user.fecha_ult_login
-
-        postCeseADNipa = postCeseService.es_post_cese(matricula, "Active_Directory", userCesado.fecha_cese, ad_nipa_login)
-        postCeseEntraID = postCeseService.es_post_cese(matricula, "APP_ENTRAID", userCesado.fecha_cese, entra_user.ultimo_login)
-        postCeseAppExa =  postCeseService.es_post_cese (matricula, "APP_Exactus", userCesado.fecha_cese, app_exactus_user.fecha_login)
-        postCeseDBExa = postCeseService.es_post_cese (matricula, "DB_EXACTUS", userCesado.fecha_cese, db_exa_user.fecha_login)
-        postCeseAppSDP = postCeseService.es_post_cese (matricula, "APP_SDP", userCesado.fecha_cese, app_sdp_user.fecha_login)
-        postCEseDBSDP = postCeseService.es_post_cese (matricula, "DB_SDP", userCesado.fecha_cese, db_sdp_user.fecha_login)
-        postCeseDBSIT = postCeseService.es_post_cese (matricula, "DB_SIT", userCesado.fecha_cese, db_sit_user.fecha_ult_login)
+        postCeseADNipa   = postCeseService.es_post_cese(matricula, "Active_Directory", userCesado.fecha_cese, ad_user.fecha_ult_login)
+        postCeseEntraID  = postCeseService.es_post_cese(matricula, "APP_ENTRAID",      userCesado.fecha_cese, entra_user.ultimo_login)
+        postCeseAppExa   = postCeseService.es_post_cese(matricula, "APP_Exactus",      userCesado.fecha_cese, app_exactus_user.fecha_login)
+        postCeseDBExa    = postCeseService.es_post_cese(matricula, "DB_EXACTUS",       userCesado.fecha_cese, db_exa_user.fecha_login)
+        postCeseAppSDP   = postCeseService.es_post_cese(matricula, "APP_SDP",          userCesado.fecha_cese, app_sdp_user.fecha_login)
+        postCeseDBSDP    = postCeseService.es_post_cese(matricula, "DB_SDP",           userCesado.fecha_cese, db_sdp_user.fecha_login)
+        postCeseDBSIT    = postCeseService.es_post_cese(matricula, "DB_SIT",           userCesado.fecha_cese, db_sit_user.fecha_ult_login)
 
         r = {
             "Matricula": matricula,
-            "Nombre": userCesado.nombre +" "+userCesado.apellido_paterno+" "+userCesado.apellido_materno,
+            "Nombre": f"{userCesado.nombre} {userCesado.apellido_paterno} {userCesado.apellido_materno}",
             "Unidad organizativa": userCesado.u_organizativa,
-            "Fecha de Cese": userCesado.fecha_cese,
-            "AD Nipa": ad_nipa_val,
-            "Ultimo Login AD Nipa": ad_nipa_login,
+            "Fecha de Cese": str(userCesado.fecha_cese) if userCesado.fecha_cese else None,
+            "AD Nipa": "Incorrecto" if ad_user.isActivo else "Correcto",
+            "Ultimo Login AD Nipa": str(ad_user.fecha_ult_login) if ad_user.fecha_ult_login else None,
             "PostCese AD Nipa": "Incorrecto" if postCeseADNipa else "Correcto",
             "Entra ID": "Incorrecto" if entra_user.account_enabled else "Correcto",
-            "Entra ID Ultimo Login": entra_user.ultimo_login,
+            "Entra ID Ultimo Login": str(entra_user.ultimo_login) if entra_user.ultimo_login else None,
             "PostCese Entra ID": "Incorrecto" if postCeseEntraID else "Correcto",
             "Usr Exactus": "Incorrecto" if app_exactus_user.isActivo else "Correcto",
-            "Usr Exactus Ultimo Login": app_exactus_user.fecha_login,
+            "Usr Exactus Ultimo Login": str(app_exactus_user.fecha_login) if app_exactus_user.fecha_login else None,
             "PostCese Exactus App": "Incorrecto" if postCeseAppExa else "Correcto",
-            "DB Exactus": db_exa_val,
-            "DB Exactus Ultimo Login": db_exa_user.fecha_login,
+            "DB Exactus": "Incorrecto" if db_exa_user.isActivo else "Correcto",
+            "DB Exactus Ultimo Login": str(db_exa_user.fecha_login) if db_exa_user.fecha_login else None,
             "PostCese DB Exactus": "Incorrecto" if postCeseDBExa else "Correcto",
             "Usr SDP": "Incorrecto" if app_sdp_user.isActivo else "Correcto",
-            "Usr SDP Ultimo Login": app_sdp_user.fecha_login,
+            "Usr SDP Ultimo Login": str(app_sdp_user.fecha_login) if app_sdp_user.fecha_login else None,
             "PostCese SDP App": "Incorrecto" if postCeseAppSDP else "Correcto",
-            "DB SDP":db_sdp_val, 
-            "DB SDP Ultimo Login":db_sdp_user.fecha_login,
-            "PostCese DB SDP": "Incorrecto" if postCEseDBSDP else "Correcto",
+            "DB SDP": "Incorrecto" if db_sdp_user.isActivo else "Correcto",
+            "DB SDP Ultimo Login": str(db_sdp_user.fecha_login) if db_sdp_user.fecha_login else None,
+            "PostCese DB SDP": "Incorrecto" if postCeseDBSDP else "Correcto",
             "DB SIT": "Incorrecto" if db_sit_user.isActivo else "Correcto",
-            "DB SIT Ultimo Login":db_sit_user.fecha_ult_login,
+            "DB SIT Ultimo Login": str(db_sit_user.fecha_ult_login) if db_sit_user.fecha_ult_login else None,
             "PostCese DB SIT": "Incorrecto" if postCeseDBSIT else "Correcto",
             "Usr NPAC": "Incorrecto" if app_sit_user.isActivo else "Correcto",
             "Usr SIT": "Incorrecto" if app_npac_user.isActivo else "Correcto",
         }
-        
+
         r["Validación Cesado Activo"] = "Incorrecto" if any(r.get(c) == "Incorrecto" for c in VAL_CESADO_ACTIVO) else "Correcto"
-        r["Validación Post Cese"] = "Incorrecto" if postCeseADNipa or postCeseEntraID or postCeseAppExa or postCeseDBExa or postCeseAppSDP or postCEseDBSDP or postCeseDBSIT else "Correcto"
+        r["Validación Post Cese"] = "Incorrecto" if any([
+            postCeseADNipa, postCeseEntraID, postCeseAppExa, postCeseDBExa,
+            postCeseAppSDP, postCeseDBSDP, postCeseDBSIT,
+        ]) else "Correcto"
+
         rows.append(r)
 
-    df_out = pd.DataFrame(rows)
-
-    wb = crear_wb_vacio()
-    _df_to_sheet(wb, "Hallazgos Cesados", df_out, date_cols=DATE_COLS_CESADOS)
-    return wb_to_buffer(wb)
+    return rows

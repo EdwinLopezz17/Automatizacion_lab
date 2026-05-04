@@ -1,16 +1,10 @@
-import io
-import pandas as pd
 from datetime import date
-from core.excel_writer import _crear_wb_vacio, _df_to_sheet, wb_to_buffer
 from services.post_cese_service import PostCeseService
 from services.account_type_service import AccountTypeService
 from services.ad_service import ADService
 from services.gdh_service import GDHUserService
 
-def generar_reporte_hallazgos_ad(
-    fecha_ref: date,
-) -> io.BytesIO:
-
+def generar_reporte_hallazgos_ad(fecha_ref: date) -> list[dict]:
     accountTypeService = AccountTypeService()
     postCeseService = PostCeseService()
     ad_service = ADService()
@@ -62,13 +56,13 @@ def generar_reporte_hallazgos_ad(
             "Matricula": mat_final,
             "Tipo de Cuenta": tipo,
             "Nombre": nombre,
-            "Fecha Creación": fec_crea,
-            "Fecha Bloqueo": fec_blq,
-            "Ultimo Login": ult_log,
+            "Fecha Creación": str(fec_crea) if fec_crea else None,
+            "Fecha Bloqueo": str(fec_blq) if fec_blq else None,
+            "Ultimo Login": str(ult_log) if ult_log else None,
             "activoGDH": "Si" if user_gdh.isActivo else "No",
             "cesadoGDH": "Si" if user_gdh.isCesado else "No",
             "Estado": "Activo" if userAd.isActivo else "Bloqueado",
-            "Fecha Cese": fecha_cese,
+            "Fecha Cese": str(fecha_cese) if fecha_cese else None,
             "sinUso>90d": sin_uso,
             "bloqueado>30d": blq30,
             "cesadoActivo": cesado_activo,
@@ -76,7 +70,4 @@ def generar_reporte_hallazgos_ad(
             "Sin Sustento": sin_sustento,
         })
 
-    df_out = pd.DataFrame(rows)
-    wb = _crear_wb_vacio()
-    _df_to_sheet(wb, "Active Directory", df_out)
-    return wb_to_buffer(wb)
+    return rows

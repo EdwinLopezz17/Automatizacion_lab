@@ -3,7 +3,6 @@ import traceback
 
 from datetime import date
 from pathlib import Path
-from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Form
 
@@ -40,85 +39,53 @@ app.add_middleware(
 )
 
 @app.post("/reporte/hallazgos-base-datos")
-async def reporte_hallazgos_base_datos(
-    fecha_ref: str = Form(""),
-):
+async def reporte_hallazgos_base_datos( fecha_ref: str = Form("")):
     try:
-        fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
+        fref = date.fromisoformat(fecha_ref)
 
-        buf = generar_reporte_hallazgos_base_datos(
-            fecha_ref=fref,
-        )
+        data = generar_reporte_hallazgos_base_datos(fecha_ref=fref)
+        return {"data": data}
+
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
-
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="Hallazgos Base de Datos.xlsx"'},
-    )
 
 @app.post("/reporte/hallazgos-ad")
-async def reporte_hallazgos_ad(
-    fecha_ref: str = Form(""),
-):
+async def reporte_hallazgos_ad(fecha_ref: str = Form("")):
     try:
-        fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
+        fref = date.fromisoformat(fecha_ref)
+        print(f"Fehca detectada para trabajar: {fref}")
         
-        buf = generar_reporte_hallazgos_ad(
-            fecha_ref=fref,
-        )
+        data = generar_reporte_hallazgos_ad(fecha_ref=fref)
+        return {"data": data}
+
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
-
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="Hallazgos Active Directory.xlsx"'},
-    )
 
 @app.post("/reporte/hallazgos-cesados")
 async def reporte_hallazgos_cesados():
     try:
-        buf = generar_reporte_hallazgos_cesados()
+        data = generar_reporte_hallazgos_cesados()
+        return {"data": data}
+
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
-
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="Hallazgos Cesados.xlsx"'},
-    )
 
 @app.post("/reporte/hallazgos-aplicaciones-criticas")
-async def reporte_hallazgos_aplicaciones_criticas(
-    fecha_ref: str = Form(""),
-):
+async def reporte_hallazgos_aplicaciones_criticas( fecha_ref: str = Form("")):
     try:
-        fref = date.fromisoformat(fecha_ref) if fecha_ref else date.today()
+        fref = date.fromisoformat(fecha_ref)
 
-        buf = generar_reporte_hallazgos_aplicaciones_criticas(
-            fecha_ref = fref,
-        )
+        data = generar_reporte_hallazgos_aplicaciones_criticas(fecha_ref=fref)
+        return {"data": data}
+
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
-
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="Hallazgos Aplicaciones Criticas.xlsx"'},
-    )
 
 @app.post("/reporte/hallazgos-entra-id")
 async def reporte_hallazgos_entra_id():
     try:
-        buf = generar_reporte_hallazgos_entra_id()
+        data = generar_reporte_hallazgos_entra_id()
+        return {"data": data}
 
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
-
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="Hallazgos EntraID.xlsx"'},
-    )

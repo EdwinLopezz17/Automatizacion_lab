@@ -20,7 +20,7 @@ def _calcular_indicadores(
     postCeseService: PostCeseService,
 ) -> dict:
 
-    if not gdh_user.isActivo:
+    if not gdh_user.isActivo or not is_app_active:
         sin_uso = "Correcto"
     elif fec_creacion_app and (fecha_ref - fec_creacion_app).days <= 90:
         sin_uso = "Correcto"
@@ -66,6 +66,7 @@ def _base_row(
         "Matrícula": gdh_user.matricula if gdh_user.matricula else usuario,
         "Tipo de Cuenta": tipo,
         "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
+        "Unidad organizativa": gdh_user.u_organizativa,
         "Estado": "Activo" if is_app_active else "Bloqueado",
         "Fecha Creación": str(fec_creacion_app) if fec_creacion_app else None,
         "Ultimo Login": str(ult_login) if ult_login else None,
@@ -86,7 +87,7 @@ def _filas_exactus(
         tipo = account_info.tipo
         matricula = account_info.matricula
 
-        if tipo in ("servicio", "proxy") or not app_exactus.isActivo:
+        if tipo in ("servicio", "proxy"):
             continue
 
         gdh_user = gdh_service.get_GDH_user(matricula)
@@ -96,7 +97,6 @@ def _filas_exactus(
         ))
 
     return rows
-
 
 def _filas_sdp(
     app_sdp_service: AppSdpService,
@@ -110,7 +110,7 @@ def _filas_sdp(
         account_info = accountTypeService.get(app_sdp.usuario)
         tipo = account_info.tipo
 
-        if tipo in ("servicio", "proxy") or not app_sdp.isActivo:
+        if tipo in ("servicio", "proxy"):
             continue
 
         gdh_user = gdh_service.get_GDH_user(account_info.matricula)
@@ -143,16 +143,19 @@ def _filas_app_sit(
             gdh_user, app_sit_user.fecha_ult_login, True,
             app_sit_user.fecha_creacion, fecha_ref, aplicacion, postCeseService,
         )
-        rows.append({
-            "Usuario": app_sit_user.usuario,
-            "Matrícula": gdh_user.matricula,
-            "Tipo de Cuenta": tipo,
-            "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
-            "Estado": "Activo",
-            "Fecha Creación AD": str(app_sit_user.fecha_creacion) if app_sit_user.fecha_creacion else None,
-            "Ultimo Login AD": str(app_sit_user.fecha_ult_login) if app_sit_user.fecha_ult_login else None,
-            **indicadores,
-        })
+
+        for grupo in app_sit_user.grupos:
+            rows.append({
+                "Usuario": app_sit_user.usuario,
+                "Matrícula": gdh_user.matricula,
+                "Grupo": grupo,
+                "Tipo de Cuenta": tipo,
+                "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
+                "Unidad organizativa": gdh_user.u_organizativa,
+                "Fecha Creación AD": str(app_sit_user.fecha_creacion) if app_sit_user.fecha_creacion else None,
+                "Ultimo Login AD": str(app_sit_user.fecha_ult_login) if app_sit_user.fecha_ult_login else None,
+                **indicadores,
+            })
 
     return rows
 
@@ -178,23 +181,24 @@ def _filas_app_npac(
             gdh_user, app_npac_user.fecha_ult_login, True,
             app_npac_user.fecha_creacion, fecha_ref, aplicacion, postCeseService,
         )
-        rows.append({
-            "Usuario": app_npac_user.usuario,
-            "Matrícula": gdh_user.matricula,
-            "Tipo de Cuenta": tipo,
-            "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
-            "Estado": "Activo",
-            "Fecha Creación AD": str(app_npac_user.fecha_creacion) if app_npac_user.fecha_creacion else None,
-            "Ultimo Login AD": str(app_npac_user.fecha_ult_login) if app_npac_user.fecha_ult_login else None,
-            **indicadores,
-        })
+
+        for grupo in app_npac_user.grupos:
+            rows.append({
+                "Usuario": app_npac_user.usuario,
+                "Matrícula": gdh_user.matricula,
+                "Grupo": grupo,
+                "Tipo de Cuenta": tipo,
+                "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
+                "Unidad organizativa":gdh_user.u_organizativa,
+                "Estado": "Activo",
+                "Fecha Creación AD": str(app_npac_user.fecha_creacion) if app_npac_user.fecha_creacion else None,
+                "Ultimo Login AD": str(app_npac_user.fecha_ult_login) if app_npac_user.fecha_ult_login else None,
+                **indicadores,
+            })
 
     return rows
 
-
-def generar_reporte_hallazgos_aplicaciones_criticas(
-    fecha_ref: date,
-) -> dict[str, list[dict]]:
+def generar_reporte_hallazgos_aplicaciones_criticas(fecha_ref: date) -> dict[str, list[dict]]:
 
     accountTypeService = AccountTypeService()
     postCeseService = PostCeseService()

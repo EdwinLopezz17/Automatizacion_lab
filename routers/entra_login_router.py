@@ -17,14 +17,16 @@ def init_db():
     with get_conn() as conn:
         conn.execute(f"""
             CREATE TABLE IF NOT EXISTS {TABLE_ENTRA} (
-                id               TEXT PRIMARY KEY NOT NULL,
-                upn              TEXT NOT NULL DEFAULT '',
-                mail             TEXT NOT NULL DEFAULT '',
-                city             TEXT NOT NULL DEFAULT '',
-                display_name     TEXT NOT NULL DEFAULT '',
-                account_enabled  INTEGER NOT NULL DEFAULT 0,
-                created_date     TEXT NOT NULL DEFAULT '',
-                ultimo_login     TEXT NOT NULL DEFAULT ''
+                id TEXT PRIMARY KEY NOT NULL,
+                upn TEXT NOT NULL DEFAULT '',
+                mail TEXT NOT NULL DEFAULT '',
+                city TEXT NOT NULL DEFAULT '',
+                display_name TEXT NOT NULL DEFAULT '',
+                account_enabled INTEGER NOT NULL DEFAULT 0,
+                created_date TEXT NOT NULL DEFAULT '',
+                ultimo_login TEXT NOT NULL DEFAULT '',
+                user_type TEXT NOT NULL DEFAULT '',
+                existe_entra INTEGER NOT NULL DEFAULT 0
             )
         """)
         conn.commit()
@@ -34,7 +36,8 @@ init_db()
 
 CAMPOS_VALIDOS = {
     "id", "upn", "mail", "city", "display_name",
-    "account_enabled", "created_date", "ultimo_login"
+    "account_enabled", "created_date", "ultimo_login",
+    "user_type", "existe_entra"
 }
 
 def _upsert(conn: sqlite3.Connection, record: dict[str, Any]) -> dict:
@@ -44,12 +47,13 @@ def _upsert(conn: sqlite3.Connection, record: dict[str, Any]) -> dict:
 
     campos = {k: v for k, v in record.items() if k in CAMPOS_VALIDOS and k != "id"}
 
-    if "account_enabled" in campos:
-        val = campos["account_enabled"]
-        campos["account_enabled"] = 1 if val in (True, 1, "true", "True", "1") else 0
+    for bool_col in ["account_enabled", "existe_entra"]:
+        if bool_col in campos:
+            val = campos[bool_col]
+            campos[bool_col] = 1 if val in (True, 1, "true", "True", "1") else 0
 
     for k in campos:
-        if k != "account_enabled":
+        if k not in ("account_enabled", "existe_entra"):
             campos[k] = str(campos[k]).strip() if campos[k] is not None else ""
 
     set_clause = ", ".join([f"{k} = excluded.{k}" for k in campos])

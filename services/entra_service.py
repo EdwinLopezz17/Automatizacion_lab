@@ -16,6 +16,8 @@ class UserEntraIDInfo:
     city: str
     display_name: str
     account_enabled: bool
+    exist_entra:bool
+    creaction_type: str
     created_date_time: Optional[date]
     ultimo_login: Optional[date] = None
 
@@ -43,15 +45,13 @@ class EntraIDService:
             return
 
         for row in rows:
-            uid = str(row["id"]).strip()
-            if not uid:
-                continue
-
             upn = str(row["upn"]).strip()
-            key = upn.upper() if upn else uid.upper()
+            if not upn:
+                continue
+            key = upn.upper()
 
             self._cache[key] = UserEntraIDInfo(
-                id = uid,
+                id = str(row["id"]).strip(),
                 mail = str(row["mail"]).strip(),
                 upn = upn,
                 city = str(row["city"]).strip(),
@@ -59,6 +59,8 @@ class EntraIDService:
                 account_enabled = bool(row["account_enabled"]),
                 created_date_time = to_date(str(row["created_date"]).strip()),
                 ultimo_login = to_date(str(row["ultimo_login"]).strip()),
+                creaction_type = str(row["user_type"]).strip(),
+                exist_entra = bool(row["existe_entra"]),
             )
 
         print(f"{len(self._cache)} usuarios cargados desde SQLite")
@@ -74,16 +76,7 @@ class EntraIDService:
         if user:
             return user
 
-        return UserEntraIDInfo(
-            id = "",
-            mail = "",
-            upn = "",
-            city = "",
-            display_name = "",
-            account_enabled = False,
-            created_date_time = None,
-            ultimo_login = None,
-        )
+        return self.void_info()
 
     def get_all_UsersEntraID(self) -> list[UserEntraIDInfo]:
         return list(self._cache.values())
@@ -101,13 +94,12 @@ class EntraIDService:
         if user_by_upn:
             return user_by_upn
 
+        return self.void_info()
+    
+    def void_info(self) -> UserEntraIDInfo:
         return UserEntraIDInfo(
-            id = "",
-            mail = "",
-            upn = "",
-            city = "",
-            display_name = "",
-            account_enabled = False,
-            created_date_time = None,
-            ultimo_login = None,
+            id = "", mail = "", upn = "", city = "",
+            display_name = "", account_enabled = False,
+            exist_entra=False, creaction_type = "",
+            created_date_time = None, ultimo_login = None,
         )

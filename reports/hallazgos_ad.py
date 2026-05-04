@@ -56,6 +56,7 @@ def generar_reporte_hallazgos_ad(fecha_ref: date) -> list[dict]:
             "Matricula": mat_final,
             "Tipo de Cuenta": tipo,
             "Nombre": nombre,
+            "Unidad organizativa": user_gdh.u_organizativa,
             "Fecha Creación": str(fec_crea) if fec_crea else None,
             "Fecha Bloqueo": str(fec_blq) if fec_blq else None,
             "Ultimo Login": str(ult_log) if ult_log else None,

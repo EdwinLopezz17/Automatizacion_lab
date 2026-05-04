@@ -4,7 +4,7 @@ import traceback
 from datetime import date
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException, Form
+from fastapi import FastAPI, HTTPException, Query
 
 from reports.hallazgos_cesados_v2 import generar_reporte_hallazgos_cesados
 from reports.hallazgos_aplicaciones_criticas import generar_reporte_hallazgos_aplicaciones_criticas
@@ -38,54 +38,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/reporte/hallazgos-base-datos")
-async def reporte_hallazgos_base_datos( fecha_ref: str = Form("")):
+@app.get("/reporte/hallazgos-base-datos")
+async def reporte_hallazgos_base_datos(fecha_ref: str = Query(...)):
     try:
         fref = date.fromisoformat(fecha_ref)
-
+        print(f"Se usara la fecha {fref}")
         data = generar_reporte_hallazgos_base_datos(fecha_ref=fref)
         return {"data": data}
-
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
 
-@app.post("/reporte/hallazgos-ad")
-async def reporte_hallazgos_ad(fecha_ref: str = Form("")):
+@app.get("/reporte/hallazgos-ad")
+async def reporte_hallazgos_ad(fecha_ref: str = Query(...)):
     try:
         fref = date.fromisoformat(fecha_ref)
-        print(f"Fehca detectada para trabajar: {fref}")
-        
+        print(f"Se usara la fecha {fref}")
         data = generar_reporte_hallazgos_ad(fecha_ref=fref)
         return {"data": data}
-
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
 
-@app.post("/reporte/hallazgos-cesados")
+@app.get("/reporte/hallazgos-cesados")
 async def reporte_hallazgos_cesados():
     try:
         data = generar_reporte_hallazgos_cesados()
         return {"data": data}
-
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
 
-@app.post("/reporte/hallazgos-aplicaciones-criticas")
-async def reporte_hallazgos_aplicaciones_criticas( fecha_ref: str = Form("")):
+@app.get("/reporte/hallazgos-aplicaciones-criticas")
+async def reporte_hallazgos_aplicaciones_criticas(fecha_ref: str = Query(...)):
     try:
         fref = date.fromisoformat(fecha_ref)
-
+        print(f"Se usara la fecha {fref}")
         data = generar_reporte_hallazgos_aplicaciones_criticas(fecha_ref=fref)
         return {"data": data}
-
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())
 
-@app.post("/reporte/hallazgos-entra-id")
-async def reporte_hallazgos_entra_id():
+@app.get("/reporte/hallazgos-entra-id")
+async def reporte_hallazgos_entra_id(fecha_ref: str = Query(...)):
     try:
-        data = generar_reporte_hallazgos_entra_id()
+        fref = date.fromisoformat(fecha_ref)
+        print(f"Se usara la fecha {fref}")
+        data = generar_reporte_hallazgos_entra_id(fecha_ref=fref)
         return {"data": data}
-
     except Exception:
         raise HTTPException(status_code=500, detail=traceback.format_exc())

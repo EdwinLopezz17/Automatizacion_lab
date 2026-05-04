@@ -28,7 +28,21 @@ def generar_reporte_hallazgos_entra_id(fecha_ref: date) -> list[dict]:
 
         userGDH = gdh_service.get_GDH_user(matricula)
 
+        # sin uso
+        if not entra_user.account_enabled:
+            sin_uso = "Correcto"
+        elif entra_user.created_date_time and (fecha_ref - entra_user.created_date_time).days <= 90:
+            sin_uso = "Correcto"
+        elif entra_user.ultimo_login and (fecha_ref - entra_user.ultimo_login).days <= 90:
+            sin_uso = "Correcto"
+        else:
+            sin_uso = "Incorrecto"
+
         cesado_activo = "Incorrecto" if (entra_user.account_enabled and userGDH.isCesado) else "Correcto"
+        
+        act_post_cese = ( 
+            "Incorrecto" if postCeseService.es_post_cese(matricula, "APP_ENTRAID", userGDH.fecha_cese, entra_user.ultimo_login) else "Correcto"
+        )
         sin_sustento  = "Incorrecto" if (entra_user.account_enabled and not userGDH.isCesado and not userGDH.isActivo) else "Correcto"
 
         rows.append({
@@ -41,13 +55,13 @@ def generar_reporte_hallazgos_entra_id(fecha_ref: date) -> list[dict]:
             "Unidad organizativa": userGDH.u_organizativa,
             "Estado": "Activo" if entra_user.account_enabled else "Bloqueado",
             "Fecha Creación": str(entra_user.created_date_time) if entra_user.created_date_time else None,
+            "Fecha Ultimo Loguin": str(entra_user.ultimo_login) if entra_user.ultimo_login else None,
             "activoGDH": "Si" if userGDH.isActivo else "No",
             "cesadoGDH": "Si" if userGDH.isCesado else "No",
             "Fecha Cese": str(userGDH.fecha_cese) if userGDH.fecha_cese else None,
-            "sinUso>90d": "Correcto",
-            "bloqueado>30d": "Correcto",
+            "sinUso>90d": sin_uso,
             "cesadoActivo": cesado_activo,
-            "actividadPostCese": "Correcto",
+            "actividadPostCese": act_post_cese,
             "Sin Sustento": sin_sustento,
         })
 

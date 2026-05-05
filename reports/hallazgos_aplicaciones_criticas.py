@@ -8,6 +8,7 @@ from services.app_exactus_service import AppExactusService
 from services.app_sdp_service import AppSdpService
 from services.app_sit_service import AppSitService
 from services.app_npac_service import AppNpacService
+from core.utils import sin_uso
 
 
 def _calcular_indicadores(
@@ -20,17 +21,11 @@ def _calcular_indicadores(
     postCeseService: PostCeseService,
 ) -> dict:
 
-    if not gdh_user.isActivo or not is_app_active:
-        sin_uso = "Correcto"
-    elif fec_creacion_app and (fecha_ref - fec_creacion_app).days <= 90:
-        sin_uso = "Correcto"
-    elif ult_login and (fecha_ref - ult_login).days <= 90:
-        sin_uso = "Correcto"
-    else:
-        sin_uso = "Incorrecto"
+    sin_uso_val = sin_uso(is_app_active, fec_creacion_app, ult_login, fecha_ref)
+    if gdh_user.isCesado:
+        sin_uso_val = "Correcto"
 
-    actividad_post = (
-        "Incorrecto"
+    actividad_post = ("Incorrecto"
         if postCeseService.es_post_cese(gdh_user.matricula, aplicacion, gdh_user.fecha_cese, ult_login)
         else "Correcto"
     )
@@ -39,7 +34,7 @@ def _calcular_indicadores(
         "activoGDH": "Si" if gdh_user.isActivo else "No",
         "cesadoGDH": "Si" if gdh_user.isCesado else "No",
         "Fecha Cese": str(gdh_user.fecha_cese) if gdh_user.fecha_cese else None,
-        "sinUso>90d": sin_uso,
+        "sinUso>90d": sin_uso_val,
         "cesadoActivo": "Incorrecto" if gdh_user.isCesado and is_app_active else "Correcto",
         "actividadPostCese": actividad_post,
         "Sin Sustento": "Incorrecto" if not gdh_user.isActivo and not gdh_user.isCesado and is_app_active else "Correcto",

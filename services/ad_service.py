@@ -2,8 +2,8 @@ import pandas as pd
 from dataclasses import dataclass
 import os
 from datetime import date
-
 from core.utils import to_date
+from services.entra_service import EntraIDService
 
 @dataclass
 class ADUserInfo:
@@ -48,6 +48,16 @@ class ADService:
             print(f"Datos extraids del AD correctamente")
         except Exception as e:
             print(f"Error: {e}")
+            
+    def sincro_entra(self):
+        entra_service = EntraIDService()
+        for user in self._cache.values():
+            user_entra = entra_service.get_by_mail(user.correo)
+            if user_entra.ultimo_login:
+                if not user.fecha_ult_login or user_entra.ultimo_login > user.fecha_ult_login:
+                    user.fecha_ult_login = user_entra.ultimo_login
+
+        print(f"Sincronización AD + Entra ID completada.")
 
     def get_AD_user(self, usuario: str) -> ADUserInfo:
         key = str(usuario).strip().upper()

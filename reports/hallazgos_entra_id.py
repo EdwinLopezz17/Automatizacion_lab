@@ -4,11 +4,14 @@ from services.account_type_service import AccountTypeService
 from services.ad_service import ADService
 from services.gdh_service import GDHUserService
 from services.entra_service import EntraIDService
+from core.utils import sin_uso
 
 def generar_reporte_hallazgos_entra_id(fecha_ref: date) -> list[dict]:
     accountTypeService = AccountTypeService()
     postCeseService = PostCeseService()
     ad_service = ADService()
+    ad_service.sincro_entra()
+    
     gdh_service = GDHUserService()
     entra_service = EntraIDService()
 
@@ -28,18 +31,7 @@ def generar_reporte_hallazgos_entra_id(fecha_ref: date) -> list[dict]:
 
         userGDH = gdh_service.get_GDH_user(matricula)
 
-        # sin uso
-        if not entra_user.account_enabled:
-            sin_uso = "Correcto"
-        elif entra_user.created_date_time and (fecha_ref - entra_user.created_date_time).days <= 90:
-            sin_uso = "Correcto"
-        elif entra_user.ultimo_login and (fecha_ref - entra_user.ultimo_login).days <= 90:
-            sin_uso = "Correcto"
-        else:
-            sin_uso = "Incorrecto"
-
         cesado_activo = "Incorrecto" if (entra_user.account_enabled and userGDH.isCesado) else "Correcto"
-        
         act_post_cese = ( 
             "Incorrecto" if postCeseService.es_post_cese(matricula, "APP_ENTRAID", userGDH.fecha_cese, entra_user.ultimo_login) else "Correcto"
         )
@@ -59,7 +51,7 @@ def generar_reporte_hallazgos_entra_id(fecha_ref: date) -> list[dict]:
             "activoGDH": "Si" if userGDH.isActivo else "No",
             "cesadoGDH": "Si" if userGDH.isCesado else "No",
             "Fecha Cese": str(userGDH.fecha_cese) if userGDH.fecha_cese else None,
-            "sinUso>90d": sin_uso,
+            "sinUso>90d": sin_uso(entra_user.account_enabled, entra_user.created_date_time, entra_user.ultimo_login, fecha_ref),
             "cesadoActivo": cesado_activo,
             "actividadPostCese": act_post_cese,
             "Sin Sustento": sin_sustento,

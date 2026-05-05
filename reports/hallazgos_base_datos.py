@@ -5,6 +5,7 @@ from services.gdh_service import GDHUserService
 from services.db_exactus_service import DBExactusService
 from services.db_sdp_service import DBSdpService
 from services.db_sit_service import DBSitService
+from core.utils import sin_uso
 
 def _construir_filas_db(
     fecha_ref: date,
@@ -24,16 +25,6 @@ def _construir_filas_db(
         mat = accTypeSrv.get(db_user.usuario).matricula
         gdh_user = gdh_service.get_GDH_user(mat)
         nombre = gdh_service.get_full_name(mat)
-
-        # sin uso
-        if not db_user.isActivo:
-            sin_uso = "Correcto"
-        elif db_user.fecha_creacion and (fecha_ref - db_user.fecha_creacion).days <= 90:
-            sin_uso = "Correcto"
-        elif db_user.fecha_login and (fecha_ref - db_user.fecha_login).days <= 90:
-            sin_uso = "Correcto"
-        else:
-            sin_uso = "Incorrecto"
 
         # blq30
         blq30 = "Correcto"
@@ -58,7 +49,7 @@ def _construir_filas_db(
             "activoGDH": "Si" if gdh_user.isActivo else "No",
             "cesadoGDH": "Si" if gdh_user.isCesado else "No",
             "Fecha Cese": str(gdh_user.fecha_cese) if gdh_user.fecha_cese else None,
-            "sinUso>90d": sin_uso,
+            "sinUso>90d": sin_uso(db_user.isActivo, db_user.fecha_creacion, db_user.fecha_login, fecha_ref),
             "bloqueado>30d": blq30,
             "cesadoActivo": cesado_activo,
             "actividadPostCese": act_post_cese,

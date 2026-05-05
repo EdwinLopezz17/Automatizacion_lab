@@ -1,4 +1,15 @@
 import pandas as pd
+from datetime import date
+
+def sin_uso(estado:bool, createdAt:date, loginAt:date, fecha_ref:date) -> str:
+    if not estado:
+        return "Correcto"
+    elif createdAt and (fecha_ref - createdAt).days <= 90:
+        return "Correcto"
+    elif loginAt and (fecha_ref - loginAt).days <= 90:
+        return "Correcto"
+    else:
+        return "Incorrecto"
 
 def to_date(val, format=None):
     if val is None or pd.isna(val):

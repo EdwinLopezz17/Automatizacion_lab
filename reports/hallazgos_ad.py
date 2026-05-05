@@ -3,6 +3,7 @@ from services.post_cese_service import PostCeseService
 from services.account_type_service import AccountTypeService
 from services.ad_service import ADService
 from services.gdh_service import GDHUserService
+from core.utils import sin_uso
 
 def generar_reporte_hallazgos_ad(fecha_ref: date) -> list[dict]:
     accountTypeService = AccountTypeService()
@@ -30,16 +31,6 @@ def generar_reporte_hallazgos_ad(fecha_ref: date) -> list[dict]:
 
         fecha_cese = user_gdh.fecha_cese
 
-        #Sin Uso > 90d
-        if not userAd.isActivo:
-            sin_uso = "Correcto"
-        elif fec_crea and (fecha_ref - fec_crea).days <= 30:
-            sin_uso = "Correcto"
-        elif ult_log and (fecha_ref - ult_log).days <= 90:
-            sin_uso = "Correcto"
-        else:
-            sin_uso = "Incorrecto"
-
         #Bloqueado > 30d
         blq30 = "Correcto"
         if not userAd.isActivo and user_gdh.isCesado:
@@ -58,13 +49,13 @@ def generar_reporte_hallazgos_ad(fecha_ref: date) -> list[dict]:
             "Nombre": nombre,
             "Unidad organizativa": user_gdh.u_organizativa,
             "Fecha Creación": str(fec_crea) if fec_crea else None,
-            "Fecha Bloqueo": str(fec_blq) if fec_blq else None,
+            "Fecha Bloqueo": None if userAd.isActivo else (str(fec_blq) if fec_blq else None),
             "Ultimo Login": str(ult_log) if ult_log else None,
             "activoGDH": "Si" if user_gdh.isActivo else "No",
             "cesadoGDH": "Si" if user_gdh.isCesado else "No",
             "Estado": "Activo" if userAd.isActivo else "Bloqueado",
             "Fecha Cese": str(fecha_cese) if fecha_cese else None,
-            "sinUso>90d": sin_uso,
+            "sinUso>90d": sin_uso(userAd.isActivo, fec_crea, ult_log, fecha_ref),
             "bloqueado>30d": blq30,
             "cesadoActivo": cesado_activo,
             "actividadPostCese": actividad_post,

@@ -31,13 +31,11 @@ def generar_reporte_hallazgos_ad(fecha_ref: date) -> list[dict]:
 
         fecha_cese = user_gdh.fecha_cese
 
-        #Bloqueado > 30d
         blq30 = "Correcto"
         if not userAd.isActivo and user_gdh.isCesado:
             if not fec_blq or (fecha_ref - fec_blq).days > 30:
                 blq30 = "Incorrecto"
 
-        #estados y actividad
         cesado_activo  = "Incorrecto" if (userAd.isActivo and user_gdh.isCesado) else "Correcto"
         actividad_post = "Incorrecto" if postCeseService.es_post_cese(mat_final, "Active_Directory",fecha_cese, ult_log) else "Correcto"
         sin_sustento = "Incorrecto" if userAd.isActivo and not user_gdh.isCesado and not user_gdh.isActivo else "Correcto"
@@ -48,13 +46,13 @@ def generar_reporte_hallazgos_ad(fecha_ref: date) -> list[dict]:
             "Tipo de Cuenta": tipo,
             "Nombre": nombre,
             "Unidad organizativa": user_gdh.u_organizativa,
-            "Fecha Creación": str(fec_crea) if fec_crea else None,
-            "Fecha Bloqueo": None if userAd.isActivo else (str(fec_blq) if fec_blq else None),
-            "Ultimo Login": str(ult_log) if ult_log else None,
+            "Fecha Creación": fec_crea if fec_crea else None,
+            "Fecha Bloqueo": None if userAd.isActivo else (fec_blq if fec_blq else None),
+            "Ultimo Login": ult_log if ult_log else None,
             "activoGDH": "Si" if user_gdh.isActivo else "No",
             "cesadoGDH": "Si" if user_gdh.isCesado else "No",
             "Estado": "Activo" if userAd.isActivo else "Bloqueado",
-            "Fecha Cese": str(fecha_cese) if fecha_cese else None,
+            "Fecha Cese": fecha_cese if fecha_cese else None,
             "sinUso>90d": sin_uso(userAd.isActivo, fec_crea, ult_log, fecha_ref),
             "bloqueado>30d": blq30,
             "cesadoActivo": cesado_activo,

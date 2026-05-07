@@ -33,7 +33,7 @@ def _calcular_indicadores(
     return {
         "activoGDH": "Si" if gdh_user.isActivo else "No",
         "cesadoGDH": "Si" if gdh_user.isCesado else "No",
-        "Fecha Cese": str(gdh_user.fecha_cese) if gdh_user.fecha_cese else None,
+        "Fecha Cese": gdh_user.fecha_cese if gdh_user.fecha_cese else None,
         "sinUso>90d": sin_uso_val,
         "cesadoActivo": "Incorrecto" if gdh_user.isCesado and is_app_active else "Correcto",
         "actividadPostCese": actividad_post,
@@ -63,8 +63,8 @@ def _base_row(
         "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
         "Unidad organizativa": gdh_user.u_organizativa,
         "Estado": "Activo" if is_app_active else "Bloqueado",
-        "Fecha Creación": str(fec_creacion_app) if fec_creacion_app else None,
-        "Ultimo Login": str(ult_login) if ult_login else None,
+        "Fecha Creación": fec_creacion_app if fec_creacion_app else None,
+        "Ultimo Login": ult_login if ult_login else None,
         **indicadores,
     }
 
@@ -147,8 +147,8 @@ def _filas_app_sit(
                 "Tipo de Cuenta": tipo,
                 "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
                 "Unidad organizativa": gdh_user.u_organizativa,
-                "Fecha Creación AD": str(app_sit_user.fecha_creacion) if app_sit_user.fecha_creacion else None,
-                "Ultimo Login AD": str(app_sit_user.fecha_ult_login) if app_sit_user.fecha_ult_login else None,
+                "Fecha Creación AD": app_sit_user.fecha_creacion if app_sit_user.fecha_creacion else None,
+                "Ultimo Login AD": app_sit_user.fecha_ult_login if app_sit_user.fecha_ult_login else None,
                 **indicadores,
             })
 
@@ -186,8 +186,8 @@ def _filas_app_npac(
                 "Nombre": f"{gdh_user.nombre} {gdh_user.apellido_paterno} {gdh_user.apellido_materno}",
                 "Unidad organizativa":gdh_user.u_organizativa,
                 "Estado": "Activo",
-                "Fecha Creación AD": str(app_npac_user.fecha_creacion) if app_npac_user.fecha_creacion else None,
-                "Ultimo Login AD": str(app_npac_user.fecha_ult_login) if app_npac_user.fecha_ult_login else None,
+                "Fecha Creación AD": app_npac_user.fecha_creacion if app_npac_user.fecha_creacion else None,
+                "Ultimo Login AD": app_npac_user.fecha_ult_login if app_npac_user.fecha_ult_login else None,
                 **indicadores,
             })
 

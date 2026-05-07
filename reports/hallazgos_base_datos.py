@@ -43,12 +43,12 @@ def _construir_filas_db(
             "Nombre": nombre,
             "Unidad organizativa":gdh_user.u_organizativa,
             "Estado": "Activo" if db_user.isActivo else "Bloqueado",
-            "Fecha Creación": str(db_user.fecha_creacion) if db_user.fecha_creacion else None,
-            "Fecha Bloqueo": str(db_user.fecha_bloq) if db_user.fecha_bloq else None,
-            "Ultimo Login": str(db_user.fecha_login) if db_user.fecha_login else None,
+            "Fecha Creación": db_user.fecha_creacion if db_user.fecha_creacion else None,
+            "Fecha Bloqueo": db_user.fecha_bloq if db_user.fecha_bloq else None,
+            "Ultimo Login": db_user.fecha_login if db_user.fecha_login else None,
             "activoGDH": "Si" if gdh_user.isActivo else "No",
             "cesadoGDH": "Si" if gdh_user.isCesado else "No",
-            "Fecha Cese": str(gdh_user.fecha_cese) if gdh_user.fecha_cese else None,
+            "Fecha Cese": gdh_user.fecha_cese if gdh_user.fecha_cese else None,
             "sinUso>90d": sin_uso(db_user.isActivo, db_user.fecha_creacion, db_user.fecha_login, fecha_ref),
             "bloqueado>30d": blq30,
             "cesadoActivo": cesado_activo,
@@ -77,16 +77,6 @@ def _construir_filas_sit(
         nombre = gdh_service.get_full_name(mat)
         fecha_cese = gdh_user.fecha_cese
 
-        # sin uso 90d
-        if not db_sit_user.isActivo:
-            sin_uso = "Correcto"
-        elif db_sit_user.fecha_creacion and (fecha_ref - db_sit_user.fecha_creacion).days <= 90:
-            sin_uso = "Correcto"
-        elif db_sit_user.fecha_ult_login and (fecha_ref - db_sit_user.fecha_ult_login).days <= 90:
-            sin_uso = "Correcto"
-        else:
-            sin_uso = "Incorrecto"
-
         # blq30
         if not gdh_user.isCesado or db_sit_user.isActivo:
             blq30 = "Correcto"
@@ -107,13 +97,13 @@ def _construir_filas_sit(
             "Nombre": nombre,
             "Unidad organizativa":gdh_user.u_organizativa,
             "Estado": "Activo" if db_sit_user.isActivo else "Bloqueado",
-            "Fecha Creación": str(db_sit_user.fecha_creacion) if db_sit_user.fecha_creacion else None,
-            "Fecha Bloqueo": str(db_sit_user.fecha_cambio) if db_sit_user.fecha_cambio else None,
-            "Ultimo Login": str(db_sit_user.fecha_ult_login) if db_sit_user.fecha_ult_login else None,
+            "Fecha Creación": db_sit_user.fecha_creacion if db_sit_user.fecha_creacion else None,
+            "Fecha Bloqueo": db_sit_user.fecha_cambio if db_sit_user.fecha_cambio else None,
+            "Ultimo Login": db_sit_user.fecha_ult_login if db_sit_user.fecha_ult_login else None,
             "activoGDH": "Si" if gdh_user.isActivo else "No",
             "cesadoGDH": "Si" if gdh_user.isCesado else "No",
-            "Fecha Cese": str(fecha_cese) if fecha_cese else None,
-            "sinUso>90d": sin_uso,
+            "Fecha Cese": fecha_cese if fecha_cese else None,
+            "sinUso>90d": sin_uso(db_sit_user.isActivo, db_sit_user.fecha_creacion, db_sit_user.fecha_ult_login, fecha_ref),
             "bloqueado>30d": blq30,
             "cesadoActivo": cesado_activo,
             "actividadPostCese": "Incorrecto" if pCeseSrv.es_post_cese(mat, "DB_SIT", fecha_cese, db_sit_user.fecha_ult_login) else "Correcto",

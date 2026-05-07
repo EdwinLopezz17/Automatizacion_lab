@@ -42,39 +42,39 @@ def generar_reporte_hallazgos_cesados() -> list[dict]:
         db_sdp_user = db_sdp_service.get_UserDBSdp(matricula)
         db_exa_user = db_exactus_service.get_UserDBExactus(matricula)
 
-        postCeseADNipa   = postCeseService.es_post_cese(matricula, "Active_Directory", userCesado.fecha_cese, ad_user.fecha_ult_login)
-        postCeseEntraID  = postCeseService.es_post_cese(matricula, "APP_ENTRAID",      userCesado.fecha_cese, entra_user.ultimo_login)
-        postCeseAppExa   = postCeseService.es_post_cese(matricula, "APP_Exactus",      userCesado.fecha_cese, app_exactus_user.fecha_login)
-        postCeseDBExa    = postCeseService.es_post_cese(matricula, "DB_EXACTUS",       userCesado.fecha_cese, db_exa_user.fecha_login)
-        postCeseAppSDP   = postCeseService.es_post_cese(matricula, "APP_SDP",          userCesado.fecha_cese, app_sdp_user.fecha_login)
-        postCeseDBSDP    = postCeseService.es_post_cese(matricula, "DB_SDP",           userCesado.fecha_cese, db_sdp_user.fecha_login)
-        postCeseDBSIT    = postCeseService.es_post_cese(matricula, "DB_SIT",           userCesado.fecha_cese, db_sit_user.fecha_ult_login)
+        postCeseADNipa = postCeseService.es_post_cese(matricula, "Active_Directory", userCesado.fecha_cese, ad_user.fecha_ult_login)
+        postCeseEntraID = postCeseService.es_post_cese(matricula, "APP_ENTRAID", userCesado.fecha_cese, entra_user.ultimo_login)
+        postCeseAppExa = postCeseService.es_post_cese(matricula, "APP_Exactus", userCesado.fecha_cese, app_exactus_user.fecha_login)
+        postCeseDBExa = postCeseService.es_post_cese(matricula, "DB_EXACTUS", userCesado.fecha_cese, db_exa_user.fecha_login)
+        postCeseAppSDP = postCeseService.es_post_cese(matricula, "APP_SDP", userCesado.fecha_cese, app_sdp_user.fecha_login)
+        postCeseDBSDP = postCeseService.es_post_cese(matricula, "DB_SDP", userCesado.fecha_cese, db_sdp_user.fecha_login)
+        postCeseDBSIT = postCeseService.es_post_cese(matricula, "DB_SIT", userCesado.fecha_cese, db_sit_user.fecha_ult_login)
 
         r = {
             "Matricula": matricula,
             "Nombre": f"{userCesado.nombre} {userCesado.apellido_paterno} {userCesado.apellido_materno}",
             "Unidad organizativa": userCesado.u_organizativa,
-            "Fecha de Cese": str(userCesado.fecha_cese) if userCesado.fecha_cese else None,
+            "Fecha de Cese": userCesado.fecha_cese if userCesado.fecha_cese else None,
             "AD Nipa": "Incorrecto" if ad_user.isActivo else "Correcto",
-            "Ultimo Login AD Nipa": str(ad_user.fecha_ult_login) if ad_user.fecha_ult_login else None,
+            "Ultimo Login AD Nipa": ad_user.fecha_ult_login if ad_user.fecha_ult_login else None,
             "PostCese AD Nipa": "Incorrecto" if postCeseADNipa else "Correcto",
             "Entra ID": "Incorrecto" if entra_user.account_enabled else "Correcto",
-            "Entra ID Ultimo Login": str(entra_user.ultimo_login) if entra_user.ultimo_login else None,
+            "Entra ID Ultimo Login": entra_user.ultimo_login if entra_user.ultimo_login else None,
             "PostCese Entra ID": "Incorrecto" if postCeseEntraID else "Correcto",
             "Usr Exactus": "Incorrecto" if app_exactus_user.isActivo else "Correcto",
-            "Usr Exactus Ultimo Login": str(app_exactus_user.fecha_login) if app_exactus_user.fecha_login else None,
+            "Usr Exactus Ultimo Login": app_exactus_user.fecha_login if app_exactus_user.fecha_login else None,
             "PostCese Exactus App": "Incorrecto" if postCeseAppExa else "Correcto",
             "DB Exactus": "Incorrecto" if db_exa_user.isActivo else "Correcto",
-            "DB Exactus Ultimo Login": str(db_exa_user.fecha_login) if db_exa_user.fecha_login else None,
+            "DB Exactus Ultimo Login": db_exa_user.fecha_login if db_exa_user.fecha_login else None,
             "PostCese DB Exactus": "Incorrecto" if postCeseDBExa else "Correcto",
             "Usr SDP": "Incorrecto" if app_sdp_user.isActivo else "Correcto",
-            "Usr SDP Ultimo Login": str(app_sdp_user.fecha_login) if app_sdp_user.fecha_login else None,
+            "Usr SDP Ultimo Login": app_sdp_user.fecha_login if app_sdp_user.fecha_login else None,
             "PostCese SDP App": "Incorrecto" if postCeseAppSDP else "Correcto",
             "DB SDP": "Incorrecto" if db_sdp_user.isActivo else "Correcto",
-            "DB SDP Ultimo Login": str(db_sdp_user.fecha_login) if db_sdp_user.fecha_login else None,
+            "DB SDP Ultimo Login": db_sdp_user.fecha_login if db_sdp_user.fecha_login else None,
             "PostCese DB SDP": "Incorrecto" if postCeseDBSDP else "Correcto",
             "DB SIT": "Incorrecto" if db_sit_user.isActivo else "Correcto",
-            "DB SIT Ultimo Login": str(db_sit_user.fecha_ult_login) if db_sit_user.fecha_ult_login else None,
+            "DB SIT Ultimo Login": db_sit_user.fecha_ult_login if db_sit_user.fecha_ult_login else None,
             "PostCese DB SIT": "Incorrecto" if postCeseDBSIT else "Correcto",
             "Usr NPAC": "Incorrecto" if app_sit_user.isActivo else "Correcto",
             "Usr SIT": "Incorrecto" if app_npac_user.isActivo else "Correcto",

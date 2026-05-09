@@ -2,8 +2,12 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 from fastapi import APIRouter, HTTPException
+from dotenv import load_dotenv
+import os
 
-DB_PATH = "certs_data.db"
+load_dotenv()
+
+DB_PATH = os.getenv("DB_PATH")
 TABLE_ENTRA = "consolidado_login_entra"
 
 router = APIRouter(prefix="/api", tags=["Entra ID Login"])

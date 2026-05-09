@@ -2,7 +2,6 @@ import pandas as pd
 from dataclasses import dataclass, field
 import os
 from datetime import date
-from core.utils import to_date
 from services.ad_service import ADService
 
 @dataclass

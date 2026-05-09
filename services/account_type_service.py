@@ -2,23 +2,27 @@ import sqlite3
 import pandas as pd
 from dataclasses import dataclass
 import re
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+
+DB_PATH = os.getenv("DB_PATH")
 @dataclass
 class AccountInfo:
     tipo: str
     matricula: str
 
 class AccountTypeService:
-    def __init__(self, db_path: str = "certs_data.db"):
+    def __init__(self):
         self._cache: dict[str, AccountInfo] = {}
-        self.db_path = db_path
 
         self.cargar_desde_db()
 
     def cargar_desde_db(self) -> None:
         self._cache = {}
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(DB_PATH)
             df_srv = pd.read_sql_query("SELECT usuario, tipo_cuenta, matricula FROM consolidado_cuentas", conn)
             conn.close()
 

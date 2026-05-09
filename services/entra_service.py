@@ -2,10 +2,13 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional
-
 from core.utils import to_date
+from dotenv import load_dotenv
+import os
 
-DB_PATH = "certs_data.db"
+load_dotenv()
+
+DB_PATH = os.getenv("DB_PATH")
 TABLE_ENTRA = "consolidado_login_entra"
 
 @dataclass

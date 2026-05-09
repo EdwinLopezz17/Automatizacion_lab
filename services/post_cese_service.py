@@ -1,9 +1,14 @@
 import sqlite3
 from datetime import date, datetime, time
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+DB_PATH = os.getenv("DB_PATH")
 
 class PostCeseService:
-    def __init__(self, db_path: str = "certs_data.db"):
-        self.db_path = db_path
+    def __init__(self):
         self._excepciones: set[tuple] = set()
 
         self.cargar_desde_db()
@@ -11,7 +16,7 @@ class PostCeseService:
     def cargar_desde_db(self) -> None:
         self._excepciones = set()
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(DB_PATH)
             cur = conn.execute("SELECT usuario, app_or_db, fecha_login FROM consolidado_post_ceses")
             for r in cur.fetchall():
                 usr = str(r[0]).strip().upper()

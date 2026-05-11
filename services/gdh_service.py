@@ -56,7 +56,6 @@ class GDHUserService:
                     fecha_alta=to_date(str(row.get('FECHA', '')).strip()),
                     u_organizativa=str(row.get('UNIDAD ORGANIZATIVA', '')).strip().upper(),
                     isActivo=True,
-                    isCesado=False
                 )
 
             for _, row in df_cesados.iterrows():
@@ -78,7 +77,6 @@ class GDHUserService:
                         fecha_alta=None,
                         fecha_cese=fecha_cese_val,
                         u_organizativa=str(row.get('UNIDAD ORGANIZATIVA', '')).strip().upper(),
-                        isActivo=False,
                         isCesado=True
                     )
 
